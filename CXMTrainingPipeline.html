@@ -1,0 +1,1609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Globe OCC CXM Training Pipeline</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --blue:#1a56db;--blue-lt:#eff6ff;--blue-bd:#bfdbfe;--blue-dk:#1e40af;
+  --amber:#b45309;--amber-lt:#fffbeb;--amber-bd:#fcd34d;
+  --green:#15803d;--green-lt:#f0fdf4;--green-bd:#bbf7d0;
+  --red:#b91c1c;--red-lt:#fef2f2;--red-bd:#fecaca;
+  --gray:#6b7280;--gray-lt:#f9fafb;--gray-bd:#e5e7eb;
+  --text:#111827;--text-2:#6b7280;--text-3:#9ca3af;
+  --bg:#f1f5f9;--card:#ffffff;--border:rgba(0,0,0,0.08);
+  --r:12px;--r-sm:8px
+}
+@media(prefers-color-scheme:dark){:root{
+  --text:#f1f5f9;--text-2:#94a3b8;--text-3:#64748b;
+  --bg:#0f172a;--card:#1e293b;--border:rgba(255,255,255,0.08);
+  --gray-lt:#1e293b;--gray-bd:#334155;
+  --blue-lt:#1e3a5f;--blue-bd:#2563eb;
+  --amber-lt:#451a03;--amber-bd:#92400e;
+  --green-lt:#052e16;--green-bd:#166534;
+  --red-lt:#450a0a;--red-bd:#991b1b
+}}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Helvetica Neue',Arial,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+.layout{display:flex;min-height:100vh}
+
+/* SIDEBAR */
+.sidebar{width:220px;min-width:220px;background:var(--card);border-right:1px solid var(--border);padding:24px 0;position:fixed;top:0;left:0;height:100vh;overflow-y:auto;z-index:100;display:flex;flex-direction:column}
+.sb-brand{padding:0 20px 20px;border-bottom:1px solid var(--border);margin-bottom:12px}
+.sb-brand h1{font-size:14px;font-weight:600;color:var(--text);line-height:1.3}
+.sb-brand p{font-size:11px;color:var(--text-2);margin-top:3px}
+.sb-nav{padding:0 10px;flex:1}
+.sb-sec{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text-3);padding:10px 10px 4px}
+.nav-item{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:var(--r-sm);font-size:13px;color:var(--text-2);cursor:pointer;transition:all .12s;margin-bottom:1px;border:none;background:none;width:100%;text-align:left}
+.nav-item:hover{background:var(--gray-lt);color:var(--text)}
+.nav-item.active{background:var(--blue-lt);color:var(--blue-dk);font-weight:500}
+.nav-item svg{width:16px;height:16px;flex-shrink:0;stroke-width:2}
+.sb-footer{padding:16px 20px;border-top:1px solid var(--border);margin-top:auto}
+.today-badge{background:var(--amber-lt);border:1px solid var(--amber-bd);color:var(--amber);border-radius:6px;padding:6px 10px;font-size:11px;font-weight:500}
+
+/* MAIN */
+.main{margin-left:220px;padding:32px;flex:1;min-width:0}
+.page{display:none}.page.active{display:block}
+.page-header{margin-bottom:24px;display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
+.page-header-text h2{font-size:22px;font-weight:600}
+.page-header-text p{font-size:13px;color:var(--text-2);margin-top:4px}
+
+/* EDIT TOGGLE */
+.edit-btn{display:flex;align-items:center;gap:6px;padding:7px 14px;border-radius:var(--r-sm);border:1px solid var(--gray-bd);background:var(--card);color:var(--text-2);font-size:12px;font-weight:500;cursor:pointer;transition:all .15s;white-space:nowrap;flex-shrink:0}
+.edit-btn:hover{border-color:var(--blue-bd);color:var(--blue)}
+.edit-btn.active{background:var(--amber-lt);border-color:var(--amber-bd);color:var(--amber)}
+.edit-btn svg{width:14px;height:14px;stroke-width:2}
+
+/* EDITABLE CELL */
+.editable{cursor:text;border-radius:4px;transition:background .1s;min-width:30px;display:inline-block}
+.edit-mode .editable{background:var(--amber-lt);outline:1px dashed var(--amber-bd)}
+.edit-mode .editable:hover{background:#fef3c7}
+.edit-mode .editable:focus{background:#fef3c7;outline:2px solid var(--amber);border-radius:4px}
+.edit-notice{display:none;background:var(--amber-lt);border:1px solid var(--amber-bd);color:var(--amber);border-radius:var(--r-sm);padding:8px 14px;font-size:12px;margin-bottom:16px;align-items:center;gap:8px}
+.edit-mode .edit-notice{display:flex}
+
+/* KPI */
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:28px}
+.kpi-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:18px}
+.kpi-label{font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:.05em;color:var(--text-2);margin-bottom:8px}
+.kpi-val{font-size:32px;font-weight:600;line-height:1}
+.kpi-sub{font-size:11px;color:var(--text-3);margin-top:4px}
+.kpi-val.blue{color:var(--blue)}.kpi-val.amber{color:var(--amber)}.kpi-val.green{color:var(--green)}.kpi-val.red{color:var(--red)}
+
+/* FLOW */
+.flow{display:flex;align-items:center;margin-bottom:28px;gap:0}
+.flow-node{flex:1;background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:20px;text-align:center}
+.flow-node.amber{border-color:var(--amber-bd);background:var(--amber-lt)}
+.flow-node.blue{border-color:var(--blue-bd);background:var(--blue-lt)}
+.flow-node.green{border-color:var(--green-bd);background:var(--green-lt)}
+.flow-num{font-size:40px;font-weight:600;line-height:1}
+.flow-lbl{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-top:4px}
+.flow-sub{font-size:11px;color:var(--text-2);margin-top:2px}
+.flow-arrow{font-size:22px;color:var(--text-3);padding:0 12px;flex-shrink:0}
+
+/* SECTION */
+.sec-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;margin-top:28px}
+.sec-title{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text-2)}
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;margin-bottom:16px}
+.card-pad{padding:20px}
+
+/* TABLES */
+.tbl-wrap{overflow-x:auto}
+table.dash{width:100%;border-collapse:collapse;font-size:12px}
+table.dash thead th{background:var(--gray-lt);padding:8px 12px;font-size:11px;font-weight:600;color:var(--text-2);text-align:center;border-bottom:1px solid var(--border);white-space:nowrap}
+table.dash thead th.l{text-align:left}
+table.dash tbody td{padding:8px 12px;text-align:center;border-bottom:1px solid var(--border);vertical-align:middle}
+table.dash tbody td.l{text-align:left}
+table.dash tbody tr:last-child td{border-bottom:none}
+table.dash tbody tr:hover{background:var(--gray-lt)}
+
+/* CHIPS */
+.chip{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:500}
+.chip.live{background:var(--green-lt);color:var(--green);border:1px solid var(--green-bd)}
+.chip.nest{background:var(--blue-lt);color:var(--blue);border:1px solid var(--blue-bd)}
+.chip.train{background:var(--amber-lt);color:var(--amber);border:1px solid var(--amber-bd)}
+.chip.upcoming{background:var(--gray-lt);color:var(--gray);border:1px solid var(--gray-bd)}
+.ou-neg{display:inline-block;background:var(--red-lt);color:var(--red);font-weight:600;border-radius:5px;padding:1px 7px}
+.ou-pos{display:inline-block;background:var(--green-lt);color:var(--green);font-weight:600;border-radius:5px;padding:1px 7px}
+.ou-zero{color:var(--text-3)}
+
+/* BATCH CARDS */
+.batch-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);margin-bottom:10px;overflow:hidden}
+.batch-header{display:flex;align-items:center;gap:14px;padding:14px 18px;cursor:pointer;transition:background .1s;user-select:none}
+.batch-header:hover{background:var(--gray-lt)}
+.batch-info{flex:1;min-width:0}
+.batch-name{font-size:14px;font-weight:600}
+.batch-lob{font-size:11px;color:var(--text-2);margin-top:2px}
+.batch-right{display:flex;align-items:center;gap:12px;flex-shrink:0}
+.batch-hc{font-size:22px;font-weight:600}
+.batch-hc-lbl{font-size:11px;color:var(--text-3);font-weight:400}
+.prog-bar{height:5px;background:var(--gray-bd);border-radius:3px;overflow:hidden;width:64px;margin-top:3px}
+.prog-fill{height:5px;border-radius:3px}
+.batch-expand{font-size:11px;color:var(--text-3);transition:transform .2s}
+.batch-expand.open{transform:rotate(180deg)}
+.batch-body{display:none;border-top:1px solid var(--border);padding:16px 18px}
+.batch-body.open{display:block}
+.batch-dates{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px}
+.batch-date-item{text-align:center}
+.batch-date-lbl{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px}
+.batch-date-val{font-size:13px;font-weight:500}
+.tl-scroll{overflow-x:auto}
+.tl-table{border-collapse:collapse;font-size:10px;min-width:max-content}
+.tl-table th{padding:4px 3px;font-weight:600;color:var(--text-3);text-align:center;white-space:nowrap;border-bottom:1px solid var(--border);min-width:36px}
+.tl-table th.now-h{color:var(--amber);font-weight:700}
+.tl-table td{padding:3px 2px;text-align:center}
+.tl-cell{display:inline-flex;align-items:center;justify-content:center;width:32px;height:24px;border-radius:5px;font-size:11px;font-weight:600}
+.tc-train{background:var(--amber-lt);color:var(--amber)}
+.tc-nest{background:var(--blue-lt);color:var(--blue)}
+.tc-live{background:var(--green-lt);color:var(--green)}
+.tc-now{outline:2px solid var(--amber);outline-offset:0}
+.tl-legend{display:flex;gap:14px;margin-top:10px;font-size:11px;color:var(--text-2)}
+.view-toggle{display:flex;gap:2px;background:var(--gray-lt);border:1px solid var(--gray-bd);border-radius:var(--r-sm);padding:3px}
+.vt-btn{padding:4px 14px;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;border:none;background:transparent;color:var(--text-2);transition:all .12s}
+.vt-btn.active{background:var(--card);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.vendor-sep{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--blue);margin:18px 0 8px 2px}
+.cap-metric{font-size:11px;color:var(--text-2);padding-left:16px!important}
+
+/* MODAL */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;align-items:center;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal{background:var(--card);border-radius:var(--r);padding:28px;width:480px;max-width:94vw;box-shadow:0 20px 60px rgba(0,0,0,.25);max-height:90vh;overflow-y:auto}
+.modal h3{font-size:16px;font-weight:600;margin-bottom:4px}
+.modal .modal-sub{font-size:12px;color:var(--text-2);margin-bottom:20px}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.form-grid.full{grid-template-columns:1fr}
+.form-field{display:flex;flex-direction:column;gap:4px}
+.form-field label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--text-2)}
+.form-field input,.form-field select{padding:8px 10px;border:1px solid var(--gray-bd);border-radius:var(--r-sm);background:var(--card);color:var(--text);font-size:13px;font-family:inherit;outline:none;transition:border-color .12s}
+.form-field input:focus,.form-field select:focus{border-color:var(--blue)}
+.modal-footer{display:flex;gap:8px;justify-content:flex-end;margin-top:20px;padding-top:16px;border-top:1px solid var(--border)}
+.btn-primary{padding:8px 20px;background:var(--blue);color:#fff;border:none;border-radius:var(--r-sm);font-size:13px;font-weight:500;cursor:pointer;transition:opacity .12s}
+.btn-primary:hover{opacity:.85}
+.btn-ghost{padding:8px 16px;background:transparent;color:var(--text-2);border:1px solid var(--gray-bd);border-radius:var(--r-sm);font-size:13px;cursor:pointer}
+.btn-ghost:hover{background:var(--gray-lt)}
+.del-btn{padding:2px 8px;background:var(--red-lt);color:var(--red);border:1px solid var(--red-bd);border-radius:5px;font-size:11px;cursor:pointer;white-space:nowrap;transition:opacity .12s}
+.del-btn:hover{opacity:.75}
+.cap-inp{width:48px;padding:5px 4px;border:1px solid var(--gray-bd);border-radius:5px;background:var(--card);color:var(--text);font-size:12px;text-align:center;font-family:inherit;outline:none}
+.cap-inp:focus{border-color:var(--blue)}
+
+/* EDITABLE DATE INPUT */
+input.date-input{border:none;background:transparent;font-size:13px;font-weight:500;font-family:inherit;color:var(--text);width:90px;padding:0;cursor:text}
+.edit-mode input.date-input{background:var(--amber-lt);border:1px dashed var(--amber-bd);border-radius:4px;padding:2px 4px;outline:none}
+.edit-mode input.date-input:focus{outline:2px solid var(--amber);background:#fef3c7}
+input.num-input{border:none;background:transparent;font-size:inherit;font-weight:inherit;font-family:inherit;color:inherit;width:100%;text-align:center;padding:0;cursor:text}
+.edit-mode input.num-input{background:var(--amber-lt);border:1px dashed var(--amber-bd);border-radius:4px;outline:none}
+.edit-mode input.num-input:focus{outline:2px solid var(--amber);background:#fef3c7}
+
+@media(max-width:768px){
+  .sidebar{width:100%;height:auto;position:relative;border-right:none;border-bottom:1px solid var(--border);padding:12px 0}
+  .sb-nav{display:flex;flex-wrap:wrap;gap:4px;padding:0 10px}
+  .sb-sec{display:none}
+  .layout{flex-direction:column}
+  .main{margin-left:0;padding:16px}
+  .flow{flex-direction:column;gap:6px}
+  .flow-arrow{transform:rotate(90deg);padding:4px 0}
+}
+</style>
+</head>
+<body>
+<div class="layout">
+
+<aside class="sidebar">
+  <div class="sb-brand">
+    <h1>Globe OCC CXM</h1>
+    <p>Training Pipeline</p>
+  </div>
+  <nav class="sb-nav">
+    <div class="sb-sec">Overview</div>
+    <button class="nav-item active" onclick="nav('overview',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+      Enterprise view
+    </button>
+    <div class="sb-sec">Training</div>
+    <button class="nav-item" onclick="nav('pipeline',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0h10a2 2 0 0 0 2-2v-4M9 21H5a2 2 0 0 1-2-2v-4m0 0h18"/></svg>
+      Training pipeline
+    </button>
+    <div class="sb-sec">Capacity</div>
+    <button class="nav-item" onclick="nav('hotline',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.8 19.8 0 0 1 1.61 3.4 2 2 0 0 1 3.6 1.21h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.9a16 16 0 0 0 6 6l.97-.97a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 21.74 16.92z"/></svg>
+      Hotline
+    </button>
+    <button class="nav-item" onclick="nav('sns',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      SnS
+    </button>
+    <div id="sb-custom-channels"></div>
+    <button onclick="openAddChannelModal()" style="display:flex;align-items:center;gap:7px;padding:7px 10px;border-radius:var(--r-sm);font-size:12px;color:var(--blue);background:var(--blue-lt);border:1px dashed var(--blue-bd);cursor:pointer;margin:4px 0;width:100%">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Add channel
+    </button>
+    <button class="nav-item" onclick="nav('roster',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+      Class roster
+    </button>
+    <div class="sb-sec" style="margin-top:8px">Activity</div>
+    <button class="nav-item" onclick="nav('audit',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+      Audit trail
+    </button>
+  </nav>
+  <div class="sb-footer">
+    <div class="today-badge">📅 Jun 18, 2026</div>
+    <div style="margin-top:8px;display:flex;align-items:center;justify-content:space-between;gap:6px">
+      <span style="font-size:11px;color:var(--text-2);font-weight:500" id="sb-username">—</span>
+      <button onclick="localStorage.removeItem('globe_occ_username');document.getElementById('username_input').value='';document.getElementById('user-err').style.display='none';document.getElementById('userModal').classList.add('open')" style="font-size:10px;color:var(--text-3);background:none;border:none;cursor:pointer;padding:0;text-decoration:underline">change</button>
+    </div>
+    <div id="sb-sync-badge" style="font-size:10px;color:var(--text-3);margin-top:3px">○ Local only</div>
+    <div style="display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap">
+      <button onclick="document.getElementById('fbSetupModal').classList.add('open')" style="font-size:10px;color:var(--blue);background:none;border:none;cursor:pointer;padding:0;text-decoration:underline">Connect Firebase</button>
+      <button onclick="resetData()" style="font-size:10px;color:var(--red);background:none;border:none;cursor:pointer;padding:0;text-decoration:underline">Reset data</button>
+    </div>
+  </div>
+</aside>
+
+<main class="main">
+  <div id="overview"   class="page active"></div>
+  <div id="pipeline"   class="page"></div>
+  <div id="hotline"    class="page"></div>
+  <div id="sns"        class="page"></div>
+  <div id="customcap"  class="page"></div>
+  <div id="roster"     class="page"></div>
+  <div id="audit"      class="page"></div>
+</main>
+</div>
+
+<!-- ═══ MODAL: USERNAME ═══ -->
+<div class="modal-overlay open" id="userModal" style="z-index:300">
+  <div class="modal" style="width:380px">
+    <h3>Welcome to Globe OCC CXM</h3>
+    <p class="modal-sub">Enter your name so your edits can be tracked in the audit trail.</p>
+    <div class="form-field" style="margin-bottom:16px">
+      <label>Your name</label>
+      <input type="text" id="username_input" placeholder="e.g. Juan dela Cruz" style="width:100%">
+    </div>
+    <div id="user-err" style="display:none;color:var(--red);font-size:12px;margin-bottom:8px"></div>
+    <div class="modal-footer" style="margin-top:0;padding-top:0;border-top:none">
+      <button class="btn-primary" style="width:100%" onclick="submitUsername()">Continue →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MODAL: FIREBASE SETUP ═══ -->
+<div class="modal-overlay" id="fbSetupModal">
+  <div class="modal" style="width:520px">
+    <h3>Connect Firebase for live sync</h3>
+    <p class="modal-sub">Paste your Firebase project config below to enable real-time collaboration and audit trail across all users.</p>
+    <div style="background:var(--gray-lt);border:1px solid var(--gray-bd);border-radius:var(--r-sm);padding:12px;font-size:11px;color:var(--text-2);margin-bottom:16px;line-height:1.7">
+      <strong>How to get your config:</strong><br>
+      1. Go to <strong>console.firebase.google.com</strong> → Create project<br>
+      2. Project Settings → Your apps → Add web app<br>
+      3. Build → Realtime Database → Create database → Start in <strong>test mode</strong><br>
+      4. Copy the config object and paste below
+    </div>
+    <div class="form-field" style="margin-bottom:12px">
+      <label>apiKey</label><input type="text" id="fb_apiKey" placeholder="AIzaSy..." style="width:100%">
+    </div>
+    <div class="form-grid">
+      <div class="form-field">
+        <label>authDomain</label><input type="text" id="fb_authDomain" placeholder="yourapp.firebaseapp.com">
+      </div>
+      <div class="form-field">
+        <label>databaseURL</label><input type="text" id="fb_databaseURL" placeholder="https://yourapp-default-rtdb.firebaseio.com">
+      </div>
+      <div class="form-field">
+        <label>projectId</label><input type="text" id="fb_projectId" placeholder="yourapp">
+      </div>
+      <div class="form-field">
+        <label>appId</label><input type="text" id="fb_appId" placeholder="1:123:web:abc">
+      </div>
+    </div>
+    <div id="fb-err" style="display:none;color:var(--red);font-size:12px;margin-top:8px"></div>
+    <div class="modal-footer">
+      <button class="btn-ghost" onclick="document.getElementById('fbSetupModal').classList.remove('open');saveFirebaseConfig()">Skip — use local only</button>
+      <button class="btn-primary" onclick="submitFirebaseConfig()">Connect & sync</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MODAL: ADD CLASS ═══ -->
+<div class="modal-overlay" id="addModal" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <h3>Add new class</h3>
+    <p class="modal-sub">Fill in batch details — it will appear immediately in the pipeline.</p>
+    <div class="form-grid full"><div class="form-field">
+      <label>Batch name</label>
+      <input type="text" id="f_name" placeholder="e.g. Backfill 14">
+    </div></div>
+    <div class="form-grid" style="margin-top:12px">
+      <div class="form-field">
+        <label>Vendor</label>
+        <select id="f_vendor"><option value="CNX">CNX</option><option value="TPS">TPS</option></select>
+      </div>
+      <div class="form-field">
+        <label>Type</label>
+        <select id="f_type">
+          <option value="Backfill">Backfill</option>
+          <option value="RAMP">RAMP</option>
+          <option value="Upskilling">Upskilling</option>
+        </select>
+      </div>
+      <div class="form-field">
+        <label>HC count</label>
+        <input type="number" id="f_hc" placeholder="e.g. 15" min="1">
+      </div>
+      <div class="form-field">
+        <label>LOB / Channel</label>
+        <input type="text" id="f_lob" placeholder="e.g. Hotline SNR">
+      </div>
+      <div class="form-field">
+        <label>Training start</label>
+        <input type="date" id="f_ts">
+      </div>
+      <div class="form-field">
+        <label>Nesting start</label>
+        <input type="date" id="f_ns">
+      </div>
+      <div class="form-field">
+        <label>Live date</label>
+        <input type="date" id="f_ld">
+      </div>
+      <div class="form-field">
+        <label>Site</label>
+        <select id="f_site">
+          <option value="Makati">Makati</option>
+          <option value="Cebu">Cebu</option>
+          <option value="Shaw">Shaw</option>
+          <option value="WFH">WFH</option>
+        </select>
+      </div>
+    </div>
+    <div id="modal-err" style="display:none;color:var(--red);font-size:12px;margin-top:10px"></div>
+    <div class="modal-footer">
+      <button class="btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn-primary" onclick="submitBatch()">Add class</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MODAL: ADD CHANNEL ═══ -->
+<div class="modal-overlay" id="addChannelModal" onclick="if(event.target===this)closeAddChannelModal()">
+  <div class="modal" style="width:620px;max-width:96vw">
+    <h3>Add new channel</h3>
+    <p class="modal-sub">Creates a new capacity tab in the sidebar. Enter a channel name and optionally set up the first LOB — you can add more LOBs any time.</p>
+    <div class="form-grid full" style="margin-bottom:16px"><div class="form-field">
+      <label>Channel name</label>
+      <input type="text" id="ch_name" placeholder="e.g. NIAS, GOMO, Wireline">
+    </div></div>
+    <div style="border-top:1px solid var(--border);padding-top:16px;margin-bottom:4px">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-2);margin-bottom:12px">First LOB — optional</div>
+      <div class="form-grid full" style="margin-bottom:12px"><div class="form-field">
+        <label>LOB name</label>
+        <input type="text" id="ch_lob" placeholder="e.g. Inbound Voice, Chat Support">
+      </div></div>
+      <table style="width:100%;border-collapse:collapse;font-size:12px">
+        <thead><tr>
+          <th style="text-align:left;padding:4px 6px;font-weight:600;color:var(--text-2);width:110px">Metric</th>
+          <th style="text-align:center;padding:4px 3px;font-weight:600;color:var(--text-2)">Jun</th>
+          <th style="text-align:center;padding:4px 3px;font-weight:600;color:var(--text-2)">Jul</th>
+          <th style="text-align:center;padding:4px 3px;font-weight:600;color:var(--text-2)">Aug</th>
+          <th style="text-align:center;padding:4px 3px;font-weight:600;color:var(--text-2)">Sep</th>
+          <th style="text-align:center;padding:4px 3px;font-weight:600;color:var(--text-2)">Oct</th>
+          <th style="text-align:center;padding:4px 3px;font-weight:600;color:var(--text-2)">Nov</th>
+          <th style="text-align:center;padding:4px 3px;font-weight:600;color:var(--text-2)">Dec</th>
+        </tr></thead>
+        <tbody>
+          <tr>
+            <td style="padding:4px 6px;font-size:11px;color:var(--amber);font-weight:600">FTE Required</td>
+            <td style="padding:3px 2px"><input type="number" id="ch_fte_0" value="0" min="0" class="cap-inp"></td>
+            <td style="padding:3px 2px"><input type="number" id="ch_fte_1" value="0" min="0" class="cap-inp"></td>
+            <td style="padding:3px 2px"><input type="number" id="ch_fte_2" value="0" min="0" class="cap-inp"></td>
+            <td style="padding:3px 2px"><input type="number" id="ch_fte_3" value="0" min="0" class="cap-inp"></td>
+            <td style="padding:3px 2px"><input type="number" id="ch_fte_4" value="0" min="0" class="cap-inp"></td>
+            <td style="padding:3px 2px"><input type="number" id="ch_fte_5" value="0" min="0" class="cap-inp"></td>
+            <td style="padding:3px 2px"><input type="number" id="ch_fte_6" value="0" min="0" class="cap-inp"></td>
+          </tr>
+          <tr>
+            <td style="padding:4px 6px;font-size:11px;color:var(--blue);font-weight:600">Active HC</td>
+            <td style="padding:3px 2px"><input type="number" id="ch_hc_0" value="0" min="0" class="cap-inp" oninput="updateChOU()"></td>
+            <td style="padding:3px 2px"><input type="number" id="ch_hc_1" value="0" min="0" class="cap-inp" oninput="updateChOU()"></td>
+            <td style="padding:3px 2px"><input type="number" id="ch_hc_2" value="0" min="0" class="cap-inp" oninput="updateChOU()"></td>
+            <td style="padding:3px 2px"><input type="number" id="ch_hc_3" value="0" min="0" class="cap-inp" oninput="updateChOU()"></td>
+            <td style="padding:3px 2px"><input type="number" id="ch_hc_4" value="0" min="0" class="cap-inp" oninput="updateChOU()"></td>
+            <td style="padding:3px 2px"><input type="number" id="ch_hc_5" value="0" min="0" class="cap-inp" oninput="updateChOU()"></td>
+            <td style="padding:3px 2px"><input type="number" id="ch_hc_6" value="0" min="0" class="cap-inp" oninput="updateChOU()"></td>
+          </tr>
+          <tr>
+            <td style="padding:4px 6px;font-size:11px;color:var(--text-3);font-weight:600">Over / (Under)</td>
+            <td id="ch_ou_0" style="padding:4px 2px;text-align:center;font-size:11px;font-weight:600;color:var(--text-3)">0</td>
+            <td id="ch_ou_1" style="padding:4px 2px;text-align:center;font-size:11px;font-weight:600;color:var(--text-3)">0</td>
+            <td id="ch_ou_2" style="padding:4px 2px;text-align:center;font-size:11px;font-weight:600;color:var(--text-3)">0</td>
+            <td id="ch_ou_3" style="padding:4px 2px;text-align:center;font-size:11px;font-weight:600;color:var(--text-3)">0</td>
+            <td id="ch_ou_4" style="padding:4px 2px;text-align:center;font-size:11px;font-weight:600;color:var(--text-3)">0</td>
+            <td id="ch_ou_5" style="padding:4px 2px;text-align:center;font-size:11px;font-weight:600;color:var(--text-3)">0</td>
+            <td id="ch_ou_6" style="padding:4px 2px;text-align:center;font-size:11px;font-weight:600;color:var(--text-3)">0</td>
+          </tr>
+        </tbody>
+      </table>
+      <div style="font-size:11px;color:var(--text-3);margin-top:6px">Over/(Under) = Active HC − FTE Required</div>
+    </div>
+    <div id="ch-err" style="display:none;color:var(--red);font-size:12px;margin-top:8px"></div>
+    <div class="modal-footer">
+      <button class="btn-ghost" onclick="closeAddChannelModal()">Cancel</button>
+      <button class="btn-primary" onclick="submitChannel()">Create channel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MODAL: ADD CAPACITY LOB ═══ -->
+<div class="modal-overlay" id="capModal" onclick="if(event.target===this)closeCapModal()">
+  <div class="modal" style="width:560px">
+    <h3>Add capacity LOB</h3>
+    <p class="modal-sub" id="cap-modal-sub">New LOB — enter FTE target and projected HC for each month (Jun–Dec).</p>
+    <div class="form-grid full" style="margin-bottom:12px"><div class="form-field">
+      <label>LOB name</label>
+      <input type="text" id="cf_name" placeholder="e.g. NIAS Team 2">
+    </div></div>
+    <table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:4px">
+      <thead><tr>
+        <th style="text-align:left;padding:4px 6px;font-weight:600;color:var(--text-2)">Metric</th>
+        <th style="text-align:center;padding:4px 4px;font-weight:600;color:var(--text-2)">Jun</th>
+        <th style="text-align:center;padding:4px 4px;font-weight:600;color:var(--text-2)">Jul</th>
+        <th style="text-align:center;padding:4px 4px;font-weight:600;color:var(--text-2)">Aug</th>
+        <th style="text-align:center;padding:4px 4px;font-weight:600;color:var(--text-2)">Sep</th>
+        <th style="text-align:center;padding:4px 4px;font-weight:600;color:var(--text-2)">Oct</th>
+        <th style="text-align:center;padding:4px 4px;font-weight:600;color:var(--text-2)">Nov</th>
+        <th style="text-align:center;padding:4px 4px;font-weight:600;color:var(--text-2)">Dec</th>
+      </tr></thead>
+      <tbody>
+        <tr>
+          <td style="padding:4px 6px;font-size:11px;color:var(--text-2)">FTE Required</td>
+          <td style="padding:2px 2px"><input type="number" id="cf_fte_0" value="0" min="0" class="cap-inp"></td>
+          <td style="padding:2px 2px"><input type="number" id="cf_fte_1" value="0" min="0" class="cap-inp"></td>
+          <td style="padding:2px 2px"><input type="number" id="cf_fte_2" value="0" min="0" class="cap-inp"></td>
+          <td style="padding:2px 2px"><input type="number" id="cf_fte_3" value="0" min="0" class="cap-inp"></td>
+          <td style="padding:2px 2px"><input type="number" id="cf_fte_4" value="0" min="0" class="cap-inp"></td>
+          <td style="padding:2px 2px"><input type="number" id="cf_fte_5" value="0" min="0" class="cap-inp"></td>
+          <td style="padding:2px 2px"><input type="number" id="cf_fte_6" value="0" min="0" class="cap-inp"></td>
+        </tr>
+        <tr>
+          <td style="padding:4px 6px;font-size:11px;color:var(--text-2)">Active HC</td>
+          <td style="padding:2px 2px"><input type="number" id="cf_hc_0" value="0" min="0" class="cap-inp"></td>
+          <td style="padding:2px 2px"><input type="number" id="cf_hc_1" value="0" min="0" class="cap-inp"></td>
+          <td style="padding:2px 2px"><input type="number" id="cf_hc_2" value="0" min="0" class="cap-inp"></td>
+          <td style="padding:2px 2px"><input type="number" id="cf_hc_3" value="0" min="0" class="cap-inp"></td>
+          <td style="padding:2px 2px"><input type="number" id="cf_hc_4" value="0" min="0" class="cap-inp"></td>
+          <td style="padding:2px 2px"><input type="number" id="cf_hc_5" value="0" min="0" class="cap-inp"></td>
+          <td style="padding:2px 2px"><input type="number" id="cf_hc_6" value="0" min="0" class="cap-inp"></td>
+        </tr>
+      </tbody>
+    </table>
+    <div id="cap-modal-err" style="display:none;color:var(--red);font-size:12px;margin-top:8px"></div>
+    <div class="modal-footer">
+      <button class="btn-ghost" onclick="closeCapModal()">Cancel</button>
+      <button class="btn-primary" onclick="submitCapLOB()">Add LOB</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════
+// DEFAULT DATA
+// ═══════════════════════════════════════════════════
+const DEFAULTS = {
+  batches: [
+    {name:'Backfill 9',      lob:'SnS Postpaid / Hotline SNR', hc:20,vendor:'CNX',type:'Backfill',  ts:'2026-05-04',ns:'2026-06-09',ld:'2026-07-07',site:'Makati'},
+    {name:'MPO',             lob:'Hotline SNR',                hc:11,vendor:'CNX',type:'Upskilling',ts:'2026-07-13',ns:'2026-07-20',ld:'2026-07-27',site:'Shaw'},
+    {name:'Backfill 10',     lob:'SnS Broadband',              hc:15,vendor:'CNX',type:'Backfill',  ts:'2026-07-06',ns:'2026-08-03',ld:'2026-08-31',site:'Shaw'},
+    {name:'Backfill 11',     lob:'SnS Postpaid',               hc:15,vendor:'CNX',type:'Backfill',  ts:'2026-07-06',ns:'2026-08-03',ld:'2026-08-31',site:'Cebu'},
+    {name:'Seed 1',          lob:'Hotline SNB / SnS Broadband',hc:10,vendor:'CNX',type:'Upskilling',ts:'2026-08-17',ns:'2026-08-24',ld:'2026-08-31',site:'Makati'},
+    {name:'Seed 2',          lob:'Hotline SNR / SnS Postpaid', hc:10,vendor:'CNX',type:'Upskilling',ts:'2026-08-17',ns:'2026-08-24',ld:'2026-08-31',site:'Makati'},
+    {name:'RAMP 13',         lob:'Hotline SNR / SnS Broadband',hc:15,vendor:'CNX',type:'RAMP',      ts:'2026-08-31',ns:'2026-09-07',ld:'2026-10-05',site:'Cebu'},
+    {name:'Backfill 12',     lob:'Hotline SNR',                hc:15,vendor:'CNX',type:'Backfill',  ts:'2026-09-07',ns:'2026-10-05',ld:'2026-11-02',site:'Shaw'},
+    {name:'Backfill 13',     lob:'Hotline SNB / SnS',          hc:15,vendor:'CNX',type:'Backfill',  ts:'2026-09-07',ns:'2026-10-05',ld:'2026-11-02',site:'Cebu'},
+    {name:'SNB/BB Batch 1',  lob:'Hotline SNB / SnS Broadband',hc:10,vendor:'TPS',type:'RAMP',      ts:'2026-04-06',ns:'2026-05-11',ld:'2026-06-08',site:'Cebu'},
+    {name:'SNR Batch 1',     lob:'Hotline SNR',                hc:23,vendor:'TPS',type:'RAMP',      ts:'2026-04-13',ns:'2026-05-18',ld:'2026-06-15',site:'Makati'},
+    {name:'SnS PrePaid B1',  lob:'SnS PrePaid',                hc:21,vendor:'TPS',type:'RAMP',      ts:'2026-03-30',ns:'2026-05-04',ld:'2026-06-01',site:'Shaw'},
+    {name:'SnS PrePaid B2',  lob:'SnS PrePaid',                hc:13,vendor:'TPS',type:'RAMP',      ts:'2026-05-18',ns:'2026-06-22',ld:'2026-07-20',site:'Shaw'},
+    {name:'SnS PrePaid B3',  lob:'SnS PrePaid',                hc:10,vendor:'TPS',type:'Backfill',  ts:'2026-06-15',ns:'2026-07-06',ld:'2026-08-03',site:'Cebu'},
+  ],
+  hotlineLOBs: {
+    'Stores':       {fte:[61,59,66,66,66,66,54],hc:[57,54,51,49,46,44,42]},
+    'Retention IB': {fte:[18,16,18,18,18,18,12],hc:[18,17,16,15,15,14,13]},
+    'SNR':          {fte:[19,28,31,31,34,35,30],hc:[22,22,31,29,17,29,39]},
+    'SNB':          {fte:[19,25,27,24,25,29,21],hc:[25,21,30,19,32,23,22]},
+    'NIAS':         {fte:[0,0,0,0,0,0,0],       hc:[0,0,0,0,0,0,0]},
+  },
+  snsLOBs: {
+    'Retention Chat':   {fte:[20,11,12,12,12,13,11],hc:[7,7,10,10,9,13,12]},
+    'T6/PR Main':       {fte:[43,14,15,15,15,16,14],hc:[7,7,6,6,6,11,11]},
+    'Private Postpaid': {fte:[10,12,14,14,14,14,13],hc:[7,15,20,17,16,10,10]},
+    'Private Broadband':{fte:[16,18,25,19,24,18,16],hc:[7,19,28,31,30,20,19]},
+    'Private Prepaid':  {fte:[11,20,22,19,19,22,19],hc:[7,7,6,20,19,26,25]},
+  },
+  customChannels: {},
+  roster: [
+    {jr:'R1674467',tower:'GOMO',             batch:'GOMO Wave 2',      lob:'GFP/GOMO',          req:11,run:11,ts:'Apr 13',ld:'May 19',status:'Ongoing', site:'Makati'},
+    {jr:'R1713749',tower:'COEX CHAT',        batch:'COEX Wave 13',     lob:'COEX CHAT',          req:22,run:21,ts:'May 04',ld:'Jul 06',status:'Ongoing', site:'Cebu'},
+    {jr:'R1713752',tower:'COEX CHAT',        batch:'COEX Backfill 9',  lob:'COEX CHAT',          req:20,run:20,ts:'May 04',ld:'Jul 07',status:'Ongoing', site:'Makati'},
+    {jr:'R1721949',tower:'COEX CHAT/STORES', batch:'COEX Backfill 10', lob:'COEX CHAT/STORES',   req:15,run:0, ts:'Jul 06',ld:'Aug 31',status:'Upcoming',site:'Shaw'},
+    {jr:'',        tower:'COEX CHAT/STORES', batch:'COEX Backfill 11', lob:'COEX CHAT/STORES',   req:15,run:0, ts:'Jul 06',ld:'Aug 31',status:'Upcoming',site:'Shaw'},
+    {jr:'R1721950',tower:'WIRELINE UPSIZE',  batch:'Wireline Upsize',  lob:'WIRELINE',           req:12,run:0, ts:'Sep 07',ld:'Oct 26',status:'Upcoming',site:'Shaw'},
+    {jr:'R1721949',tower:'COEX UNIV BB',     batch:'COEX Backfill 12', lob:'COEX UNIVERSALIST',  req:15,run:0, ts:'Sep 07',ld:'Nov 02',status:'Upcoming',site:'Cebu'},
+    {jr:'',        tower:'COEX UNIV PP',     batch:'COEX Backfill 13', lob:'COEX UNIVERSALIST',  req:15,run:0, ts:'Sep 07',ld:'Nov 02',status:'Upcoming',site:'Makati'},
+    {jr:'',        tower:'WIRELINE T2',      batch:'BB Tech Wave 10',  lob:'WIRELINE TIER 2',    req:10,run:0, ts:'Oct 05',ld:'Nov 30',status:'Upcoming',site:'Makati'},
+    {jr:'R1674475',tower:'GOMO/GFP',         batch:'GOMO Wave 3',      lob:'GOMO/GFP',           req:7, run:0, ts:'Oct 05',ld:'Nov 16',status:'Upcoming',site:'Makati'},
+    {jr:'R1674471',tower:'COEX/STORES/UNIV', batch:'COEX Backfill 13', lob:'COEX CHAT/STORES/UNIV',req:22,run:0,ts:'Nov 09',ld:'Jan 04',status:'Upcoming',site:'Shaw'},
+  ]
+};
+
+// ═══════════════════════════════════════════════════
+// FIREBASE + STATE
+// ═══════════════════════════════════════════════════
+let _fbApp=null, _fbDb=null, _fbConnected=false;
+const FB_CFG_KEY='globe_occ_fb_config';
+const DATA_KEY='hs_dashboard_v2';
+const USER_KEY='globe_occ_username';
+
+function loadFirebaseConfig(){
+  try{ return JSON.parse(localStorage.getItem(FB_CFG_KEY)||'null'); }catch(e){ return null; }
+}
+function saveFirebaseConfig(cfg){
+  if(cfg) localStorage.setItem(FB_CFG_KEY,JSON.stringify(cfg));
+  updateSyncBadge();
+}
+
+function initFirebase(cfg){
+  if(!cfg||!cfg.databaseURL) return;
+  try{
+    _fbApp = firebase.initializeApp(cfg);
+    _fbDb  = firebase.database();
+    _fbConnected = true;
+    // Real-time listener — update all clients when data changes
+    _fbDb.ref('dashboardData').on('value', snap=>{
+      const val=snap.val();
+      if(val){
+        val.customChannels=val.customChannels||{};
+        D=val;
+        renderCurrent();
+        renderSidebarCustomChannels();
+      }
+    });
+    updateSyncBadge();
+  }catch(e){ console.warn('Firebase init failed:',e); _fbConnected=false; }
+}
+
+function loadData(){
+  try{
+    const saved=localStorage.getItem(DATA_KEY);
+    if(saved){
+      const d=JSON.parse(saved);
+      if(!d.customChannels) d.customChannels={};
+      return d;
+    }
+  }catch(e){}
+  return JSON.parse(JSON.stringify(DEFAULTS));
+}
+
+function saveData(action='Updated', detail=''){
+  localStorage.setItem(DATA_KEY,JSON.stringify(D));
+  if(_fbConnected && _fbDb){
+    _fbDb.ref('dashboardData').set(D);
+    // write audit log entry
+    const entry={
+      ts: Date.now(),
+      user: getCurrentUser(),
+      action,
+      detail: detail||''
+    };
+    _fbDb.ref('auditLog').push(entry);
+  }
+}
+
+function resetData(){
+  if(!confirm('Reset all data to defaults?')) return;
+  localStorage.removeItem(DATA_KEY);
+  D=loadData();
+  if(_fbConnected&&_fbDb) _fbDb.ref('dashboardData').set(D);
+  renderCurrent();
+  renderSidebarCustomChannels();
+}
+
+let D = loadData();
+
+// ═══════════════════════════════════════════════════
+// USERNAME
+// ═══════════════════════════════════════════════════
+function getCurrentUser(){ return localStorage.getItem(USER_KEY)||'Unknown'; }
+
+function submitUsername(){
+  const name=document.getElementById('username_input').value.trim();
+  const err=document.getElementById('user-err');
+  if(!name){ err.textContent='Please enter your name.'; err.style.display='block'; return; }
+  localStorage.setItem(USER_KEY, name);
+  document.getElementById('userModal').classList.remove('open');
+  updateUserDisplay();
+  // check if firebase is configured
+  const cfg=loadFirebaseConfig();
+  if(!cfg) document.getElementById('fbSetupModal').classList.add('open');
+  else initFirebase(cfg);
+}
+
+function updateUserDisplay(){
+  const el=document.getElementById('sb-username');
+  if(el) el.textContent=getCurrentUser();
+}
+
+function updateSyncBadge(){
+  const el=document.getElementById('sb-sync-badge');
+  if(!el) return;
+  if(_fbConnected){
+    el.textContent='● Live sync on';
+    el.style.color='var(--green)';
+  } else {
+    el.textContent='○ Local only';
+    el.style.color='var(--text-3)';
+  }
+}
+
+// ═══════════════════════════════════════════════════
+// FIREBASE SETUP MODAL
+// ═══════════════════════════════════════════════════
+function submitFirebaseConfig(){
+  const cfg={
+    apiKey:            document.getElementById('fb_apiKey').value.trim(),
+    authDomain:        document.getElementById('fb_authDomain').value.trim(),
+    databaseURL:       document.getElementById('fb_databaseURL').value.trim(),
+    projectId:         document.getElementById('fb_projectId').value.trim(),
+    appId:             document.getElementById('fb_appId').value.trim(),
+  };
+  const err=document.getElementById('fb-err');
+  if(!cfg.apiKey||!cfg.databaseURL){ err.textContent='apiKey and databaseURL are required.'; err.style.display='block'; return; }
+  saveFirebaseConfig(cfg);
+  document.getElementById('fbSetupModal').classList.remove('open');
+  initFirebase(cfg);
+}
+
+// ═══════════════════════════════════════════════════
+// AUDIT TRAIL
+// ═══════════════════════════════════════════════════
+function renderAuditTrail(){
+  const page=document.getElementById('audit');
+  if(!_fbConnected||!_fbDb){
+    page.innerHTML=`
+    <div class="page-header"><div class="page-header-text"><h2>Audit Trail</h2><p>Change history across all users</p></div></div>
+    <div style="padding:60px;text-align:center">
+      <div style="font-size:32px;margin-bottom:12px">🔌</div>
+      <div style="font-size:15px;font-weight:600;margin-bottom:6px">Firebase not connected</div>
+      <p style="font-size:13px;color:var(--text-2);margin-bottom:20px">Connect Firebase to enable live sync and audit trail across all users.</p>
+      <button class="btn-primary" onclick="document.getElementById('fbSetupModal').classList.add('open')">Connect Firebase</button>
+    </div>`;
+    return;
+  }
+  page.innerHTML=`
+  <div class="page-header"><div class="page-header-text"><h2>Audit Trail</h2><p>All changes made by all users in real time</p></div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <span style="font-size:12px;color:var(--green);font-weight:500">● Live</span>
+      <input type="text" id="audit-search" placeholder="Filter by user or action…" style="padding:6px 10px;border:1px solid var(--gray-bd);border-radius:var(--r-sm);font-size:12px;background:var(--card);color:var(--text);outline:none;width:200px" oninput="filterAudit(this.value)">
+    </div>
+  </div>
+  <div class="card" id="audit-table-wrap">
+    <div style="padding:40px;text-align:center;color:var(--text-3);font-size:13px">Loading audit log…</div>
+  </div>`;
+
+  _fbDb.ref('auditLog').orderByChild('ts').limitToLast(200).once('value', snap=>{
+    const entries=[];
+    snap.forEach(c=>entries.push({id:c.key,...c.val()}));
+    entries.reverse();
+    window._auditEntries=entries;
+    renderAuditTable(entries);
+  });
+}
+
+function renderAuditTable(entries){
+  const wrap=document.getElementById('audit-table-wrap');
+  if(!wrap) return;
+  if(!entries.length){
+    wrap.innerHTML=`<div style="padding:40px;text-align:center;color:var(--text-3);font-size:13px">No changes recorded yet.</div>`;
+    return;
+  }
+  wrap.innerHTML=`<div class="tbl-wrap"><table class="dash" style="min-width:600px">
+    <thead><tr>
+      <th style="width:160px" class="l">Time</th>
+      <th style="width:140px" class="l">User</th>
+      <th style="width:180px" class="l">Action</th>
+      <th class="l">Detail</th>
+    </tr></thead>
+    <tbody>${entries.map(e=>{
+      const d=new Date(e.ts);
+      const dt=d.toLocaleDateString('en-PH',{month:'short',day:'numeric',year:'numeric'})+' '+d.toLocaleTimeString('en-PH',{hour:'2-digit',minute:'2-digit'});
+      return `<tr>
+        <td class="l" style="font-size:11px;color:var(--text-3);white-space:nowrap">${dt}</td>
+        <td class="l"><span style="font-size:12px;font-weight:600">${e.user||'—'}</span></td>
+        <td class="l"><span style="font-size:12px;color:var(--blue)">${e.action||'—'}</span></td>
+        <td class="l" style="font-size:12px;color:var(--text-2)">${e.detail||''}</td>
+      </tr>`;
+    }).join('')}</tbody>
+  </table></div>`;
+}
+
+function filterAudit(q){
+  if(!window._auditEntries) return;
+  const lq=q.toLowerCase();
+  const filtered=window._auditEntries.filter(e=>
+    (e.user||'').toLowerCase().includes(lq)||(e.action||'').toLowerCase().includes(lq)||(e.detail||'').toLowerCase().includes(lq)
+  );
+  renderAuditTable(filtered);
+}
+
+const TODAY = new Date(2026,5,18);
+const MONTHS = ['Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+let editMode = false;
+let pipeView = 'weekly';
+let currentPage = 'overview';
+let activeCharts = {};
+
+function toggleEdit(){
+  editMode = !editMode;
+  document.querySelectorAll('.main').forEach(el => el.classList.toggle('edit-mode', editMode));
+  document.querySelectorAll('.edit-btn').forEach(el => el.classList.toggle('active', editMode));
+  if(!editMode) saveData();
+  renderCurrent();
+}
+
+// ═══════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════
+function pd(s){ const[y,m,d]=s.split('-').map(Number); return new Date(y,m-1,d); }
+function fmtD(d){ return ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getMonth()]+' '+d.getDate(); }
+function fmtWk(d){ return (d.getMonth()+1)+'/'+(d.getDate()); }
+
+function getPhase(b,d){
+  const ts=pd(b.ts),ns=pd(b.ns),ld=pd(b.ld);
+  if(d<ts) return 'none';
+  if(d<ns) return 'train';
+  if(d<ld) return 'nest';
+  return 'live';
+}
+function currPhase(b){ return getPhase(b,TODAY); }
+
+function phaseBadge(p){
+  const m={live:'live',nest:'nest',train:'train',none:'upcoming'};
+  const l={live:'Live',nest:'Nesting',train:'Training',none:'Upcoming'};
+  return `<span class="chip ${m[p]}">${l[p]}</span>`;
+}
+
+function isThisWeek(w){ return w<=TODAY && new Date(w.getTime()+7*86400000)>TODAY; }
+
+function genWeeks(){ const o=[]; let d=new Date(2026,4,1); const e=new Date(2027,1,1); while(d<=e){o.push(new Date(d));d=new Date(d.getTime()+7*86400000);} return o; }
+const WEEKS=genWeeks();
+
+function ou(fte,hc){ return hc-fte; }
+function ouCell(v){
+  if(v===null||v===undefined) return '<td></td>';
+  const cls=v<0?'ou-neg':v>0?'ou-pos':'ou-zero';
+  return `<td><span class="${cls}">${v>0?'+':''}${v}</span></td>`;
+}
+
+function mkChart(id,cfg){ if(activeCharts[id]){activeCharts[id].destroy();delete activeCharts[id];} const el=document.getElementById(id); if(!el)return; activeCharts[id]=new Chart(el,cfg); }
+
+function renderCurrent(){
+  const fn={overview:renderOverview,pipeline:()=>renderPipeline(pipeView),hotline:()=>renderCapacity('hotline'),sns:()=>renderCapacity('sns'),roster:renderRoster,customcap:()=>renderCustomCapacity(_currentCustomChannel),audit:renderAuditTrail};
+  if(fn[currentPage]) fn[currentPage]();
+}
+
+function editBtn(pageId){
+  return `<button class="edit-btn${editMode?' active':''}" onclick="toggleEdit()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+    ${editMode?'Save changes':'Edit data'}
+  </button>`;
+}
+
+// Inline-editable number
+function editNum(path,val,extraStyle=''){
+  if(!editMode) return `<span style="${extraStyle}">${val}</span>`;
+  return `<input type="number" class="num-input" value="${val}" style="${extraStyle}" onchange="setPath('${path}',+this.value);saveData()" onclick="event.stopPropagation()">`;
+}
+
+function setPath(path,val){
+  const parts=path.split('.');
+  let obj=D;
+  for(let i=0;i<parts.length-1;i++) obj=obj[parts[i]];
+  obj[parts[parts.length-1]]=val;
+}
+
+// ═══════════════════════════════════════════════════
+// OVERVIEW
+// ═══════════════════════════════════════════════════
+function renderOverview(){
+  const live=D.batches.filter(b=>currPhase(b)==='live');
+  const nest=D.batches.filter(b=>currPhase(b)==='nest');
+  const train=D.batches.filter(b=>currPhase(b)==='train');
+  const upcoming=D.batches.filter(b=>currPhase(b)==='none');
+  const hcLive=live.reduce((s,b)=>s+b.hc,0);
+  const hcNest=nest.reduce((s,b)=>s+b.hc,0);
+  const hcTrain=train.reduce((s,b)=>s+b.hc,0);
+  const hcUp=upcoming.reduce((s,b)=>s+b.hc,0);
+
+  // HC graduating to live per month (only on live date month, not extending)
+  const monthlyLive=MONTHS.map((_,mi)=>{
+    const ms=new Date(2026,5+mi,1),me=new Date(2026,5+mi+1,1);
+    return D.batches.filter(b=>{const l=pd(b.ld);return l>=ms&&l<me;}).reduce((s,b)=>s+b.hc,0);
+  });
+
+  const allLobs=[...Object.values(D.hotlineLOBs),...Object.values(D.snsLOBs)];
+  const netOU=MONTHS.map((_,i)=>allLobs.reduce((s,l)=>ou(l.fte[i],l.hc[i])+s,0));
+  const grand=netOU.reduce((a,b)=>a+b,0);
+
+  document.getElementById('overview').innerHTML=`
+  <div class="page-header">
+    <div class="page-header-text"><h2>Enterprise Overview</h2><p>Hotline + SnS · CNX + TPS · Jun–Dec 2026</p></div>
+    ${editBtn('overview')}
+  </div>
+  <div class="edit-notice"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> Edit mode on — click any number to update it. Changes save automatically when you click "Save changes".</div>
+
+  <div class="kpi-grid">
+    <div class="kpi-card"><div class="kpi-label">Live on floor</div><div class="kpi-val green">${hcLive}</div><div class="kpi-sub">${live.length} class${live.length!==1?'es':''}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Nesting</div><div class="kpi-val blue">${hcNest}</div><div class="kpi-sub">${nest.length} class${nest.length!==1?'es':''}</div></div>
+    <div class="kpi-card"><div class="kpi-label">In training</div><div class="kpi-val amber">${hcTrain}</div><div class="kpi-sub">${train.length} class${train.length!==1?'es':''}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Upcoming</div><div class="kpi-val">${hcUp}</div><div class="kpi-sub">${upcoming.length} classes</div></div>
+    <div class="kpi-card"><div class="kpi-label">Enterprise net O/U</div><div class="kpi-val ${grand<0?'red':grand>0?'green':''}">${grand>0?'+':''}${grand}</div><div class="kpi-sub">Jun–Dec combined</div></div>
+  </div>
+
+  <div class="flow">
+    <div class="flow-node amber">
+      <div class="flow-num" style="color:var(--amber)">${hcTrain}</div>
+      <div class="flow-lbl" style="color:var(--amber)">Training</div>
+      <div class="flow-sub">In classroom · ${train.length} class${train.length!==1?'es':''}</div>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node blue">
+      <div class="flow-num" style="color:var(--blue)">${hcNest}</div>
+      <div class="flow-lbl" style="color:var(--blue)">Nesting</div>
+      <div class="flow-sub">On floor, supervised · ${nest.length} class${nest.length!==1?'es':''}</div>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node green">
+      <div class="flow-num" style="color:var(--green)">${hcLive}</div>
+      <div class="flow-lbl" style="color:var(--green)">Live</div>
+      <div class="flow-sub">Fully productive · ${live.length} class${live.length!==1?'es':''}</div>
+    </div>
+  </div>
+
+  <div class="sec-header" style="margin-top:0"><div class="sec-title">HC graduating to live — by month</div></div>
+  <div class="card card-pad">
+    <div style="position:relative;height:160px"><canvas id="cLand" aria-label="HC going live by month"></canvas></div>
+    <div style="display:flex;gap:18px;margin-top:14px;flex-wrap:wrap">
+      ${MONTHS.map((m,i)=>monthlyLive[i]>0?`<span style="font-size:13px;color:var(--text-2)">${m}: <strong style="color:var(--green)">${monthlyLive[i]} HC</strong></span>`:'').filter(Boolean).join('')}
+    </div>
+  </div>
+
+  <div class="sec-header"><div class="sec-title">Enterprise net over / (under) — monthly</div></div>
+  <div class="card">
+    <div class="tbl-wrap">
+      <table class="dash">
+        <thead><tr><th class="l">Channel</th>${MONTHS.map(m=>`<th>${m}</th>`).join('')}<th>Total</th></tr></thead>
+        <tbody>
+          ${['hotlineLOBs','snsLOBs'].map((key,ci)=>{
+            const label=['Hotline','SnS'][ci];
+            const lobs=Object.values(D[key]);
+            const totals=MONTHS.map((_,i)=>lobs.reduce((s,l)=>s+ou(l.fte[i],l.hc[i]),0));
+            const total=totals.reduce((a,b)=>a+b,0);
+            return `<tr><td class="l" style="font-weight:600">${label}</td>${totals.map(v=>ouCell(v)).join('')}${ouCell(total)}</tr>`;
+          }).join('')}
+          <tr style="background:var(--gray-lt)">
+            <td class="l" style="font-weight:700">Enterprise total</td>
+            ${netOU.map(v=>ouCell(v)).join('')}${ouCell(grand)}
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>`;
+
+  mkChart('cLand',{type:'bar',data:{labels:MONTHS,datasets:[{data:monthlyLive,backgroundColor:monthlyLive.map(v=>v>0?'#86efac':'#e5e7eb'),borderRadius:6,borderSkipped:false}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.raw} HC going live`}}},scales:{x:{grid:{display:false},ticks:{font:{size:12}}},y:{grid:{color:'rgba(0,0,0,0.04)'},ticks:{font:{size:11},stepSize:10},beginAtZero:true}}}});
+}
+
+// ═══════════════════════════════════════════════════
+// PIPELINE — T/N shown during phase, HC only on live week/month
+// ═══════════════════════════════════════════════════
+function renderPipeline(view){
+  if(view) pipeView=view;
+
+  // Weekly totals — count HC only on the training/nesting phases (not after live)
+  const wkTrain=WEEKS.map(w=>D.batches.filter(b=>getPhase(b,w)==='train').reduce((s,b)=>s+b.hc,0));
+  const wkNest =WEEKS.map(w=>D.batches.filter(b=>getPhase(b,w)==='nest').reduce((s,b)=>s+b.hc,0));
+  // Live: only count in the week that contains the live date (graduation week)
+  const wkLive =WEEKS.map(w=>{
+    const wEnd=new Date(w.getTime()+7*86400000);
+    return D.batches.filter(b=>{const l=pd(b.ld);return l>=w&&l<wEnd;}).reduce((s,b)=>s+b.hc,0);
+  });
+
+  // Split multi-LOB strings and normalize: trim, collapse spaces, title-case known tokens
+  function normalizeLOB(s){
+    return s.trim().replace(/\s+/g,' ')
+      .replace(/\bsns\b/gi,'SnS')
+      .replace(/\bsnr\b/gi,'SNR')
+      .replace(/\bsnb\b/gi,'SNB')
+      .replace(/\bhotline\b/gi,'Hotline')
+      .replace(/\bpostpaid\b/gi,'Postpaid')
+      .replace(/\bprepaid\b/gi,'Prepaid')
+      .replace(/\bbroadband\b/gi,'Broadband');
+  }
+  function batchLOBs(b){
+    return b.lob.split('/').map(s=>normalizeLOB(s)).filter(Boolean);
+  }
+  // Deduplicate case-insensitively: keep first canonical form seen
+  const lobCanonical={};
+  D.batches.flatMap(batchLOBs).forEach(l=>{
+    const key=l.toLowerCase();
+    if(!lobCanonical[key]) lobCanonical[key]=l;
+  });
+  // Sort: Hotline first, then SnS, then others — alphabetical within each group
+  const allLOBKeys=Object.values(lobCanonical).sort((a,b)=>{
+    const rank=s=>s.toLowerCase().startsWith('hotline')?0:s.toLowerCase().startsWith('sns')?1:2;
+    return rank(a)-rank(b)||a.localeCompare(b);
+  });
+
+  const LOB_FILTER_KEY='hs_lob_filter';
+  if(!window._lobFilter) window._lobFilter = sessionStorage.getItem(LOB_FILTER_KEY)||'All';
+  // Normalize stored filter to current canonical form
+  const activeLob=(()=>{
+    const stored=window._lobFilter;
+    if(stored==='All') return 'All';
+    const match=allLOBKeys.find(k=>k.toLowerCase()===stored.toLowerCase());
+    return match||'All';
+  })();
+
+  // Case-insensitive match helper
+  const lobMatch=(a,b)=>a.toLowerCase()===b.toLowerCase();
+
+  const filteredBatches=activeLob==='All'
+    ?D.batches
+    :D.batches.filter(b=>batchLOBs(b).some(l=>lobMatch(l,activeLob)));
+
+  // Group by canonical LOB name
+  const lobGroups={};
+  filteredBatches.forEach(b=>{
+    batchLOBs(b).forEach(lname=>{
+      const canonical=lobCanonical[lname.toLowerCase()]||lname;
+      if(activeLob!=='All'&&!lobMatch(canonical,activeLob)) return;
+      if(!lobGroups[canonical]) lobGroups[canonical]=[];
+      if(!lobGroups[canonical].includes(b)) lobGroups[canonical].push(b);
+    });
+  });
+
+  const filterBar=`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:18px">
+    ${['All',...allLOBKeys].map(l=>{
+      const isActive=l==='All'?activeLob==='All':lobMatch(l,activeLob);
+      const count=l==='All'?D.batches.length:D.batches.filter(b=>batchLOBs(b).some(k=>lobMatch(k,l))).length;
+      return `<button onclick="window._lobFilter='${l.replace(/'/g,"\\'")}';sessionStorage.setItem('${LOB_FILTER_KEY}','${l.replace(/'/g,"\\'")}');renderPipeline()" style="padding:5px 12px;border-radius:20px;font-size:12px;font-weight:500;cursor:pointer;border:1px solid ${isActive?'var(--blue)':'var(--gray-bd)'};background:${isActive?'var(--blue-lt)':'var(--card)'};color:${isActive?'var(--blue)':'var(--text-2)'};">${l} <span style="opacity:.6;font-size:10px">${count}</span></button>`;
+    }).join('')}
+  </div>`;
+
+  const cards=Object.entries(lobGroups).map(([lobName,lbatches])=>{
+    lbatches.sort((a,b)=>pd(a.ld)-pd(b.ld));
+    const rows=lbatches.map((b,idx)=>{
+      const batchIdx=D.batches.indexOf(b);
+      const p=currPhase(b);
+      const ts=pd(b.ts),ns=pd(b.ns),ld=pd(b.ld);
+      let progPct=0,progColor='#d1d5db',subLabel='';
+      if(p==='train'){progPct=Math.min(100,Math.round((TODAY-ts)/(ns-ts)*100));progColor='#fbbf24';subLabel=`${Math.round((ns-TODAY)/864e5)}d to nesting`;}
+      else if(p==='nest'){progPct=Math.min(100,Math.round((TODAY-ns)/(ld-ns)*100));progColor='#60a5fa';subLabel=`${Math.round((ld-TODAY)/864e5)}d to live`;}
+      else if(p==='live'){progPct=100;progColor='#4ade80';subLabel='On floor';}
+      else{subLabel=`Starts ${fmtD(ts)}`;}
+
+      // weekly timeline — T during training, N during nesting, HC only on live date week
+      let tlHeaders='',tlCells='';
+      if(pipeView==='weekly'){
+        tlHeaders=WEEKS.map(w=>`<th class="${isThisWeek(w)?'now-h':''}">${isThisWeek(w)?'NOW':fmtWk(w)}</th>`).join('');
+        tlCells=WEEKS.map(w=>{
+          const wEnd=new Date(w.getTime()+7*86400000);
+          const ph=getPhase(b,w);
+          const isLiveWeek=ld>=w&&ld<wEnd;
+          const isTod=isThisWeek(w);
+          if(isLiveWeek){
+            return `<td><span class="tl-cell tc-live${isTod?' tc-now':''}">${b.hc}</span></td>`;
+          } else if(ph==='train'){
+            return `<td><span class="tl-cell tc-train${isTod?' tc-now':''}">T</span></td>`;
+          } else if(ph==='nest'){
+            return `<td><span class="tl-cell tc-nest${isTod?' tc-now':''}">N</span></td>`;
+          }
+          return '<td></td>';
+        }).join('');
+      } else {
+        // monthly — T if any training week, N if any nesting week, HC only in live month
+        tlHeaders=MONTHS.map(m=>`<th>${m}</th>`).join('');
+        tlCells=MONTHS.map((_,mi)=>{
+          const ms=new Date(2026,5+mi,1),me=new Date(2026,5+mi+1,1);
+          const isLiveMonth=ld>=ms&&ld<me;
+          if(isLiveMonth) return `<td><span class="tl-cell tc-live">${b.hc}</span></td>`;
+          // check if any day in this month is training or nesting
+          const phases=new Set();
+          let d=new Date(ms);
+          while(d<me){phases.add(getPhase(b,d));d=new Date(d.getTime()+7*864e5);}
+          if(phases.has('train')) return `<td><span class="tl-cell tc-train">T</span></td>`;
+          if(phases.has('nest'))  return `<td><span class="tl-cell tc-nest">N</span></td>`;
+          return '<td></td>';
+        }).join('');
+      }
+
+      return `
+      <div class="batch-card">
+        <!-- COLLAPSED HEADER -->
+        <div class="batch-header" onclick="toggleBatch(this)" style="align-items:flex-start;padding:14px 18px 12px">
+
+          <!-- LEFT: HC + batch name + LOB -->
+          <div style="display:flex;gap:14px;flex:0 0 38%;min-width:240px;align-items:flex-start">
+            <!-- HC bubble -->
+            <div style="flex-shrink:0;text-align:center;min-width:52px">
+              ${editMode
+                ?`<input type="number" class="num-input" value="${b.hc}" style="font-size:26px;font-weight:700;width:52px;text-align:center;color:var(--text)" onclick="event.stopPropagation()" onchange="D.batches[${batchIdx}].hc=+this.value;saveData()">`
+                :`<div style="font-size:28px;font-weight:700;line-height:1;color:var(--text)">${b.hc}</div>`}
+              <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--text-3)">HC</div>
+            </div>
+            <!-- divider -->
+            <div style="width:1px;background:var(--border);align-self:stretch;flex-shrink:0"></div>
+            <!-- name + lob -->
+            <div style="min-width:0;flex:1">
+              <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-bottom:3px">
+                <span style="font-size:15px;font-weight:600">${b.name}</span>
+                ${phaseBadge(p)}
+              </div>
+              <div style="font-size:11px;color:var(--text-2);margin-bottom:1px">${b.lob}</div>
+              <div style="font-size:10px;color:var(--text-3)">${b.type} · ${b.vendor} · <span style="color:${p==='live'?'var(--green)':p==='nest'?'var(--blue)':p==='train'?'var(--amber)':'var(--text-3)'}">${subLabel}</span></div>
+            </div>
+          </div>
+
+          <!-- RIGHT: timeline stretches to fill remaining space -->
+          <div style="flex:1;display:flex;flex-direction:column;gap:8px;padding-left:20px;min-width:0">
+            <!-- date strip — nodes fixed, connectors grow -->
+            <div style="display:flex;align-items:center;width:100%">
+              <div style="text-align:center;min-width:80px;flex-shrink:0">
+                <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--amber);margin-bottom:3px">Training</div>
+                ${editMode
+                  ?`<input type="date" class="date-input" value="${b.ts}" onclick="event.stopPropagation()" onchange="D.batches[${batchIdx}].ts=this.value;saveData()" style="font-size:15px;font-weight:700;width:110px">`
+                  :`<div style="font-size:16px;font-weight:700;color:var(--text);white-space:nowrap">${fmtD(ts)}</div>`}
+              </div>
+              <div style="flex:1;height:2px;background:linear-gradient(to right,var(--amber-bd),var(--blue-bd));margin:10px 8px 0;border-radius:1px"></div>
+              <div style="text-align:center;min-width:80px;flex-shrink:0">
+                <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--blue);margin-bottom:3px">Nesting</div>
+                ${editMode
+                  ?`<input type="date" class="date-input" value="${b.ns}" onclick="event.stopPropagation()" onchange="D.batches[${batchIdx}].ns=this.value;saveData()" style="font-size:15px;font-weight:700;width:110px">`
+                  :`<div style="font-size:16px;font-weight:700;color:var(--text);white-space:nowrap">${fmtD(ns)}</div>`}
+              </div>
+              <div style="flex:1;height:2px;background:linear-gradient(to right,var(--blue-bd),var(--green-bd));margin:10px 8px 0;border-radius:1px"></div>
+              <div style="text-align:center;min-width:80px;flex-shrink:0">
+                <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--green);margin-bottom:3px">Live</div>
+                ${editMode
+                  ?`<input type="date" class="date-input" value="${b.ld}" onclick="event.stopPropagation()" onchange="D.batches[${batchIdx}].ld=this.value;saveData()" style="font-size:15px;font-weight:700;width:110px">`
+                  :`<div style="font-size:16px;font-weight:700;color:var(--green);white-space:nowrap">${fmtD(ld)}</div>`}
+              </div>
+            </div>
+            <!-- progress + actions row -->
+            <div style="display:flex;align-items:center;justify-content:flex-end;gap:8px">
+              ${p!=='none'?`<div class="prog-bar" style="flex:1;max-width:240px"><div class="prog-fill" style="width:${progPct}%;background:${progColor}"></div></div>`:'<div style="flex:1"></div>'}
+              <button class="del-btn" onclick="event.stopPropagation();deleteBatch(${batchIdx})">✕ Remove</button>
+              <div class="batch-expand" id="exp_${batchIdx}">▼</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- EXPANDED: weekly/monthly timeline -->
+        <div class="batch-body" id="body_${batchIdx}">
+          <div class="tl-scroll">
+            <table class="tl-table">
+              <thead><tr>${tlHeaders}</tr></thead>
+              <tbody><tr>${tlCells}</tr></tbody>
+            </table>
+          </div>
+          <div class="tl-legend">
+            <span><span class="tl-cell tc-train" style="width:24px;height:18px;font-size:10px">T</span> Training</span>
+            <span><span class="tl-cell tc-nest"  style="width:24px;height:18px;font-size:10px">N</span> Nesting</span>
+            <span><span class="tl-cell tc-live"  style="width:24px;height:18px;font-size:10px">#</span> Live — HC count on graduation week</span>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+    const count=lbatches.length;
+    const totalHC=lbatches.reduce((s,b)=>s+b.hc,0);
+    return `<div class="vendor-sep" style="display:flex;align-items:center;justify-content:space-between;margin:18px 0 8px 2px">
+      <span>${lobName}</span>
+      <span style="font-size:10px;font-weight:500;color:var(--text-3);text-transform:none;letter-spacing:0">${count} class${count!==1?'es':''} · ${totalHC} HC</span>
+    </div>${rows}`;
+  }).join('');
+
+  document.getElementById('pipeline').innerHTML=`
+  <div class="page-header">
+    <div class="page-header-text"><h2>Training Pipeline</h2><p>Status based on Jun 18, 2026 · HC shown at each phase milestone only</p></div>
+    <div style="display:flex;gap:8px;align-items:center;flex-shrink:0">
+      <button class="btn-primary" style="display:flex;align-items:center;gap:6px;font-size:12px;padding:7px 14px" onclick="openAddModal()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Add class
+      </button>
+      ${editBtn('pipeline')}
+    </div>
+  </div>
+  <div class="edit-notice"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> Edit mode on — update HC and dates directly on each batch card. Expand a card to edit its dates.</div>
+
+  <div class="sec-header" style="margin-top:0"><div class="sec-title">Weekly HC flow — training · nesting · live graduation</div></div>
+  <div class="card card-pad" style="margin-bottom:24px">
+    <div style="display:flex;gap:16px;margin-bottom:12px;font-size:12px">
+      <span style="display:flex;align-items:center;gap:5px"><span style="width:11px;height:11px;border-radius:2px;background:var(--amber-lt);border:1px solid var(--amber-bd);display:inline-block"></span><span style="color:var(--amber);font-weight:500">Training</span></span>
+      <span style="display:flex;align-items:center;gap:5px"><span style="width:11px;height:11px;border-radius:2px;background:var(--blue-lt);border:1px solid var(--blue-bd);display:inline-block"></span><span style="color:var(--blue);font-weight:500">Nesting</span></span>
+      <span style="display:flex;align-items:center;gap:5px"><span style="width:11px;height:11px;border-radius:2px;background:var(--green-lt);border:1px solid var(--green-bd);display:inline-block"></span><span style="color:var(--green);font-weight:500">Live (graduation week)</span></span>
+    </div>
+    <div style="position:relative;height:180px"><canvas id="cPipe" aria-label="Weekly HC by phase"></canvas></div>
+  </div>
+
+  <div class="sec-header">
+    <div class="sec-title">Filter by LOB</div>
+    <div class="view-toggle">
+      <button class="vt-btn ${pipeView==='weekly'?'active':''}" onclick="renderPipeline('weekly')">Weekly</button>
+      <button class="vt-btn ${pipeView==='monthly'?'active':''}" onclick="renderPipeline('monthly')">Monthly</button>
+    </div>
+  </div>
+  ${filterBar}
+  ${Object.keys(lobGroups).length===0?`<div style="padding:40px;text-align:center;color:var(--text-3);font-size:13px">No classes found for this LOB.</div>`:''}
+  ${cards}`;
+
+  mkChart('cPipe',{type:'bar',data:{
+    labels:WEEKS.map((w,i)=>isThisWeek(w)?'▼':fmtWk(w)),
+    datasets:[
+      {label:'Training',data:wkTrain,backgroundColor:'#fef3c7',borderColor:'#fbbf24',borderWidth:0.5,stack:'s'},
+      {label:'Nesting', data:wkNest, backgroundColor:'#dbeafe',borderColor:'#93c5fd',borderWidth:0.5,stack:'s'},
+      {label:'Live',    data:wkLive, backgroundColor:'#dcfce7',borderColor:'#6ee7b7',borderWidth:0.5,stack:'s'},
+    ]
+  },options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:false},tooltip:{callbacks:{title:c=>`Week of ${WEEKS[c[0].dataIndex].toLocaleDateString('en-US',{month:'short',day:'numeric'})}`}}},
+    scales:{x:{stacked:true,grid:{display:false},ticks:{font:{size:9},maxRotation:45,autoSkip:true,maxTicksLimit:16}},y:{stacked:true,grid:{color:'rgba(0,0,0,0.04)'},ticks:{font:{size:11}}}}}
+  });
+}
+
+function toggleBatch(el){
+  const body=el.nextElementSibling;
+  const exp=el.querySelector('.batch-expand');
+  body.classList.toggle('open');
+  exp.classList.toggle('open');
+}
+
+// ═══════════════════════════════════════════════════
+// CAPACITY
+// ═══════════════════════════════════════════════════
+function renderCapacity(pageId){
+  const isHotline=pageId==='hotline';
+  const lobSet=isHotline?D.hotlineLOBs:D.snsLOBs;
+  const title=isHotline?'Hotline Capacity':'SnS Capacity';
+  const sub=isHotline?'CNX · Voice channels · FTE Required vs Active HC':'CNX · Shop & Sales chat · FTE Required vs Active HC';
+  const storeKey=isHotline?'hotlineLOBs':'snsLOBs';
+
+  const rows=Object.entries(lobSet).map(([name,d])=>{
+    const ouVals=MONTHS.map((_,i)=>ou(d.fte[i],d.hc[i]));
+    const ouTotal=ouVals.reduce((a,b)=>a+b,0);
+    const ouCls=ouTotal<0?'ou-neg':ouTotal>0?'ou-pos':'ou-zero';
+
+    const fteCells=d.fte.map((v,i)=>editMode
+      ?`<td><input type="number" class="num-input" value="${v}" style="color:var(--text-2)" onchange="D['${storeKey}']['${name}'].fte[${i}]=+this.value;saveData()"></td>`
+      :`<td style="color:var(--text-2)">${v}</td>`).join('');
+
+    const hcCells=d.hc.map((v,i)=>editMode
+      ?`<td><input type="number" class="num-input" value="${v}" style="font-weight:600" onchange="D['${storeKey}']['${name}'].hc[${i}]=+this.value;saveData()"></td>`
+      :`<td><strong>${v}</strong></td>`).join('');
+
+    const safeName=name.replace(/'/g,"\\'");
+    return `
+    <tr>
+      <td class="l" style="font-weight:600" rowspan="3">
+        <div style="display:flex;align-items:center;gap:6px">
+          <span>${name}</span>
+          <button class="del-btn" style="font-size:10px;padding:1px 6px" onclick="deleteCapLOB('${storeKey}','${safeName}')">✕</button>
+        </div>
+      </td>
+      <td class="l cap-metric">FTE Required</td>${fteCells}<td style="color:var(--text-2)">${d.fte.reduce((a,b)=>a+b,0)}</td>
+    </tr>
+    <tr>
+      <td class="l cap-metric">Active HC</td>${hcCells}<td><strong>${d.hc.reduce((a,b)=>a+b,0)}</strong></td>
+    </tr>
+    <tr style="border-bottom:2px solid var(--border)">
+      <td class="l cap-metric">Over / (Under)</td>${ouVals.map(v=>ouCell(v)).join('')}<td><span class="${ouCls}">${ouTotal>0?'+':''}${ouTotal}</span></td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById(pageId).innerHTML=`
+  <div class="page-header">
+    <div class="page-header-text"><h2>${title}</h2><p>${sub} · Jun–Dec 2026</p></div>
+    <div style="display:flex;gap:8px;align-items:center;flex-shrink:0">
+      <button class="btn-primary" style="display:flex;align-items:center;gap:6px;font-size:12px;padding:7px 14px" onclick="openCapModal('${storeKey}')">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Add LOB
+      </button>
+      ${editBtn(pageId)}
+    </div>
+  </div>
+  <div class="edit-notice"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> Edit mode on — click any FTE Required or Active HC value to update. Over/(Under) recalculates automatically.</div>
+  <div style="background:var(--amber-lt);border:1px solid var(--amber-bd);border-radius:var(--r-sm);padding:10px 14px;font-size:12px;color:var(--amber);margin-bottom:20px">
+    Row 1 = FTE Required (target) &nbsp;·&nbsp; Row 2 = Active HC (projected) &nbsp;·&nbsp; Row 3 = Over/(Under) — auto-calculated
+  </div>
+  <div class="card">
+    <div class="tbl-wrap">
+      <table class="dash">
+        <thead><tr><th class="l" style="width:130px">LOB</th><th class="l" style="width:110px">Metric</th>${MONTHS.map(m=>`<th>${m}</th>`).join('')}<th>Total</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  </div>`;
+}
+
+// ═══════════════════════════════════════════════════
+// ROSTER — read-only, auto-generated from D.batches
+// ═══════════════════════════════════════════════════
+function renderRoster(){
+  // req HC: sum FTE from matching capacity LOB for the batch's live month, fallback to batch.hc
+  function reqForBatch(b){
+    const ld=pd(b.ld);
+    const mi=MONTHS.findIndex((_,i)=>{const ms=new Date(2026,5+i,1),me=new Date(2026,5+i+1,1);return ld>=ms&&ld<me;});
+    const lobs=b.lob.split('/').map(s=>s.trim().toLowerCase());
+    let sum=0,matched=false;
+    Object.entries({...D.hotlineLOBs,...D.snsLOBs}).forEach(([k,v])=>{
+      if(lobs.some(l=>k.toLowerCase().includes(l)||l.includes(k.toLowerCase()))){
+        if(mi>=0) sum+=v.fte[mi]; matched=true;
+      }
+    });
+    return matched&&sum>0?sum:b.hc;
+  }
+
+  const roster=D.batches.map(b=>{
+    const p=currPhase(b);
+    const ts=pd(b.ts),ld=pd(b.ld);
+    const req=reqForBatch(b);
+    const run=b.hc;
+    const gap=run-req;
+    const pct=req>0?Math.round(run/req*100):100;
+    const pctCol=pct<80?'#b91c1c':pct<100?'#b45309':'#15803d';
+    const statusLabel=p==='live'?'Live':p==='nest'?'Nesting':p==='train'?'Training':'Upcoming';
+    const statusCls=p==='live'?'live':p==='nest'?'nest':p==='train'?'train':'upcoming';
+    const gapCls=gap<0?'ou-neg':gap>0?'ou-pos':'ou-zero';
+    return {b,p,ts,ld,req,run,gap,pct,pctCol,statusLabel,statusCls,gapCls};
+  }).sort((a,b)=>pd(a.b.ts)-pd(b.b.ts));
+
+  const totalReq=roster.reduce((s,r)=>s+r.req,0);
+  const totalHC=roster.reduce((s,r)=>s+r.run,0);
+  const live=roster.filter(r=>r.p==='live').length;
+  const ongoing=roster.filter(r=>r.p==='train'||r.p==='nest').length;
+
+  const rows=roster.map((r,i)=>{
+    const {b,ts,ld,req,run,gap,pct,pctCol,statusLabel,statusCls,gapCls}=r;
+    return `<tr>
+      <td style="color:var(--text-3)">${i+1}</td>
+      <td class="l" style="font-weight:600">${b.name}</td>
+      <td class="l" style="font-size:11px;color:var(--text-2);max-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${b.lob}</td>
+      <td style="font-size:11px;color:var(--text-3)">${b.vendor}</td>
+      <td style="font-size:11px;color:var(--text-3)">${b.type}</td>
+      <td style="font-weight:600">${run}</td>
+      <td style="color:var(--text-2)">${req}</td>
+      <td><span class="${gapCls}">${gap>0?'+':''}${gap}</span></td>
+      <td>
+        <div style="font-size:11px;font-weight:600;color:${pctCol}">${pct}%</div>
+        <div style="height:3px;background:var(--gray-bd);border-radius:2px;overflow:hidden;width:50px;margin-top:2px">
+          <div style="height:3px;border-radius:2px;width:${Math.min(pct,100)}%;background:${pctCol}"></div>
+        </div>
+      </td>
+      <td style="font-size:11px">${fmtD(ts)}</td>
+      <td style="font-size:11px;color:var(--blue)">${fmtD(pd(b.ns))}</td>
+      <td style="font-size:11px;font-weight:600;color:var(--green)">${fmtD(ld)}</td>
+      <td><span class="chip ${statusCls}">${statusLabel}</span></td>
+      <td style="font-size:11px;color:var(--text-2)">${b.site||'—'}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('roster').innerHTML=`
+  <div class="page-header">
+    <div class="page-header-text"><h2>Class Roster</h2><p>Auto-populated from Training Pipeline · ${roster.length} classes</p></div>
+  </div>
+  <div style="background:var(--blue-lt);border:1px solid var(--blue-bd);border-radius:var(--r-sm);padding:8px 14px;font-size:12px;color:var(--blue);margin-bottom:20px">
+    Roster is auto-generated from the Training Pipeline. To add or edit classes, go to the <strong>Training Pipeline</strong> tab.
+  </div>
+  <div class="kpi-grid" style="grid-template-columns:repeat(4,1fr)">
+    <div class="kpi-card"><div class="kpi-label">Total classes</div><div class="kpi-val">${roster.length}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Total HC</div><div class="kpi-val">${totalHC}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Live on floor</div><div class="kpi-val green">${live}</div></div>
+    <div class="kpi-card"><div class="kpi-label">In training / nesting</div><div class="kpi-val amber">${ongoing}</div></div>
+  </div>
+  <div class="card">
+    <div class="tbl-wrap">
+      <table class="dash" style="min-width:960px">
+        <thead><tr>
+          <th style="width:28px">#</th>
+          <th class="l" style="width:140px">Batch</th>
+          <th class="l" style="width:160px">LOB</th>
+          <th style="width:55px">Vendor</th>
+          <th style="width:80px">Type</th>
+          <th style="width:44px">HC</th>
+          <th style="width:44px">Req</th>
+          <th style="width:55px">Gap</th>
+          <th style="width:70px">Fill</th>
+          <th style="width:72px">Training</th>
+          <th style="width:72px">Nesting</th>
+          <th style="width:72px">Live date</th>
+          <th style="width:90px">Status</th>
+          <th style="width:70px">Site</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  </div>`;
+}
+
+// ═══════════════════════════════════════════════════
+// CUSTOM CHANNELS
+// ═══════════════════════════════════════════════════
+let _currentCustomChannel = '';
+
+function renderSidebarCustomChannels(){
+  const container = document.getElementById('sb-custom-channels');
+  if(!container) return;
+  container.innerHTML = Object.keys(D.customChannels).map(ch=>`
+    <button class="nav-item${currentPage==='customcap'&&_currentCustomChannel===ch?' active':''}" onclick="navCustom('${ch.replace(/'/g,"\\'")}',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+      ${ch}
+    </button>`).join('');
+}
+
+function navCustom(ch, btn){
+  _currentCustomChannel = ch;
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(b=>b.classList.remove('active'));
+  document.getElementById('customcap').classList.add('active');
+  if(btn) btn.classList.add('active');
+  currentPage = 'customcap';
+  if(editMode){ editMode=false; document.querySelectorAll('.main').forEach(el=>el.classList.remove('edit-mode')); document.querySelectorAll('.edit-btn').forEach(el=>el.classList.remove('active')); }
+  renderCustomCapacity(ch);
+}
+
+function renderCustomCapacity(ch){
+  if(!D.customChannels[ch]) return;
+  const lobSet = D.customChannels[ch];
+  const storeRef = ch;
+
+  const rows = Object.entries(lobSet).map(([name,d])=>{
+    const ouVals = MONTHS.map((_,i)=>ou(d.fte[i],d.hc[i]));
+    const ouTotal = ouVals.reduce((a,b)=>a+b,0);
+    const ouCls = ouTotal<0?'ou-neg':ouTotal>0?'ou-pos':'ou-zero';
+    const fteCells = d.fte.map((v,i)=>editMode
+      ?`<td><input type="number" class="num-input" value="${v}" style="color:var(--text-2)" onchange="D.customChannels['${storeRef}']['${name}'].fte[${i}]=+this.value;saveData()"></td>`
+      :`<td style="color:var(--text-2)">${v}</td>`).join('');
+    const hcCells = d.hc.map((v,i)=>editMode
+      ?`<td><input type="number" class="num-input" value="${v}" style="font-weight:600" onchange="D.customChannels['${storeRef}']['${name}'].hc[${i}]=+this.value;saveData()"></td>`
+      :`<td><strong>${v}</strong></td>`).join('');
+    const safeName = name.replace(/'/g,"\\'");
+    return `
+    <tr>
+      <td class="l" style="font-weight:600" rowspan="3">
+        <div style="display:flex;align-items:center;gap:6px">
+          <span>${name}</span>
+          <button class="del-btn" style="font-size:10px;padding:1px 6px" onclick="deleteCustomLOB('${storeRef}','${safeName}')">✕</button>
+        </div>
+      </td>
+      <td class="l cap-metric">FTE Required</td>${fteCells}<td style="color:var(--text-2)">${d.fte.reduce((a,b)=>a+b,0)}</td>
+    </tr>
+    <tr><td class="l cap-metric">Active HC</td>${hcCells}<td><strong>${d.hc.reduce((a,b)=>a+b,0)}</strong></td></tr>
+    <tr style="border-bottom:2px solid var(--border)">
+      <td class="l cap-metric">Over / (Under)</td>${ouVals.map(v=>ouCell(v)).join('')}<td><span class="${ouCls}">${ouTotal>0?'+':''}${ouTotal}</span></td>
+    </tr>`;
+  }).join('');
+
+  const safeChName = ch.replace(/'/g,"\\'");
+  document.getElementById('customcap').innerHTML=`
+  <div class="page-header">
+    <div class="page-header-text"><h2>${ch} Capacity</h2><p>Custom channel · FTE Required vs Active HC · Jun–Dec 2026</p></div>
+    <div style="display:flex;gap:8px;align-items:center;flex-shrink:0">
+      <button class="del-btn" style="padding:6px 12px;font-size:12px" onclick="deleteChannel('${safeChName}')">✕ Delete channel</button>
+      <button class="btn-primary" style="display:flex;align-items:center;gap:6px;font-size:12px;padding:7px 14px" onclick="openCapModalCustom('${safeChName}')">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Add LOB
+      </button>
+      ${editBtn('customcap')}
+    </div>
+  </div>
+  <div class="edit-notice"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> Edit mode on — click any FTE Required or Active HC value to update.</div>
+  <div style="background:var(--amber-lt);border:1px solid var(--amber-bd);border-radius:var(--r-sm);padding:10px 14px;font-size:12px;color:var(--amber);margin-bottom:20px">
+    Row 1 = FTE Required (target) &nbsp;·&nbsp; Row 2 = Active HC (projected) &nbsp;·&nbsp; Row 3 = Over/(Under) — auto-calculated
+  </div>
+  ${Object.keys(lobSet).length===0
+    ?`<div style="padding:60px;text-align:center;color:var(--text-3);font-size:13px">No LOBs yet — click <strong>Add LOB</strong> to get started.</div>`
+    :`<div class="card"><div class="tbl-wrap">
+      <table class="dash">
+        <thead><tr><th class="l" style="width:130px">LOB</th><th class="l" style="width:110px">Metric</th>${MONTHS.map(m=>`<th>${m}</th>`).join('')}<th>Total</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div></div>`}`;
+}
+
+function updateChOU(){
+  for(let i=0;i<7;i++){
+    const fte=+document.getElementById('ch_fte_'+i).value||0;
+    const hc=+document.getElementById('ch_hc_'+i).value||0;
+    const v=hc-fte;
+    const el=document.getElementById('ch_ou_'+i);
+    el.textContent=(v>0?'+':'')+v;
+    el.style.color=v<0?'var(--red)':v>0?'var(--green)':'var(--text-3)';
+  }
+}
+
+function openAddChannelModal(){
+  document.getElementById('ch_name').value='';
+  document.getElementById('ch_lob').value='';
+  document.getElementById('ch-err').style.display='none';
+  for(let i=0;i<7;i++){
+    document.getElementById('ch_fte_'+i).value=0;
+    document.getElementById('ch_hc_'+i).value=0;
+    document.getElementById('ch_ou_'+i).textContent='0';
+    document.getElementById('ch_ou_'+i).style.color='var(--text-3)';
+    // wire live O/U update
+    document.getElementById('ch_fte_'+i).oninput=updateChOU;
+    document.getElementById('ch_hc_'+i).oninput=updateChOU;
+  }
+  document.getElementById('addChannelModal').classList.add('open');
+  setTimeout(()=>document.getElementById('ch_name').focus(),50);
+}
+function closeAddChannelModal(){ document.getElementById('addChannelModal').classList.remove('open'); }
+
+function submitChannel(){
+  const name = document.getElementById('ch_name').value.trim();
+  const err  = document.getElementById('ch-err');
+  if(!name){ err.textContent='Please enter a channel name.'; err.style.display='block'; return; }
+  if(D.customChannels[name]||['hotline','sns'].includes(name.toLowerCase())){
+    err.textContent='A channel with this name already exists.'; err.style.display='block'; return;
+  }
+  D.customChannels[name] = {};
+  // add first LOB if provided
+  const lobName = document.getElementById('ch_lob').value.trim();
+  if(lobName){
+    const fte=[0,1,2,3,4,5,6].map(i=>+document.getElementById('ch_fte_'+i).value||0);
+    const hc= [0,1,2,3,4,5,6].map(i=>+document.getElementById('ch_hc_'+i).value||0);
+    D.customChannels[name][lobName]={fte,hc};
+  }
+  saveData(); closeAddChannelModal(); renderSidebarCustomChannels();
+  setTimeout(()=>{
+    const btn=document.querySelector('#sb-custom-channels button:last-child');
+    navCustom(name,btn);
+  },50);
+}
+
+function deleteChannel(ch){
+  if(!confirm(`Delete "${ch}" channel and all its LOBs?\nThis cannot be undone.`)) return;
+  delete D.customChannels[ch];
+  saveData(); renderSidebarCustomChannels();
+  nav('overview', document.querySelector('.nav-item'));
+}
+
+function openCapModalCustom(ch){
+  _capStoreKey = '__custom__' + ch;
+  document.getElementById('cf_name').value='';
+  document.getElementById('cap-modal-sub').textContent=`New LOB for ${ch} — enter FTE target and projected HC for Jun–Dec.`;
+  for(let i=0;i<7;i++){document.getElementById('cf_fte_'+i).value=0;document.getElementById('cf_hc_'+i).value=0;}
+  document.getElementById('cap-modal-err').style.display='none';
+  document.getElementById('capModal').classList.add('open');
+  setTimeout(()=>document.getElementById('cf_name').focus(),50);
+}
+
+function deleteCustomLOB(ch, name){
+  if(!confirm(`Remove "${name}" from ${ch}?\nThis cannot be undone.`)) return;
+  delete D.customChannels[ch][name];
+  saveData(); renderCustomCapacity(ch);
+}
+
+// ═══════════════════════════════════════════════════
+// NAV
+// ═══════════════════════════════════════════════════
+function nav(id,btn){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(b=>b.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  btn.classList.add('active');
+  currentPage=id;
+  if(editMode){ editMode=false; document.querySelectorAll('.main').forEach(el=>el.classList.remove('edit-mode')); document.querySelectorAll('.edit-btn').forEach(el=>el.classList.remove('active')); }
+  renderCurrent();
+}
+
+function openAddModal(){
+  document.getElementById('f_name').value='';
+  document.getElementById('f_hc').value='';
+  document.getElementById('f_lob').value='';
+  document.getElementById('f_ts').value='';
+  document.getElementById('f_ns').value='';
+  document.getElementById('f_ld').value='';
+  document.getElementById('modal-err').style.display='none';
+  document.getElementById('addModal').classList.add('open');
+  setTimeout(()=>document.getElementById('f_name').focus(),50);
+}
+function closeModal(){ document.getElementById('addModal').classList.remove('open'); }
+
+function submitBatch(){
+  const name=document.getElementById('f_name').value.trim();
+  const hc=parseInt(document.getElementById('f_hc').value);
+  const lob=document.getElementById('f_lob').value.trim();
+  const ts=document.getElementById('f_ts').value;
+  const ns=document.getElementById('f_ns').value;
+  const ld=document.getElementById('f_ld').value;
+  const vendor=document.getElementById('f_vendor').value;
+  const type=document.getElementById('f_type').value;
+  const site=document.getElementById('f_site').value;
+  const err=document.getElementById('modal-err');
+  if(!name||!hc||!lob||!ts||!ns||!ld){
+    err.textContent='Please fill in all fields.'; err.style.display='block'; return;
+  }
+  if(ns<=ts){err.textContent='Nesting start must be after training start.';err.style.display='block';return;}
+  if(ld<=ns){err.textContent='Live date must be after nesting start.';err.style.display='block';return;}
+  D.batches.push({name,lob,hc,vendor,type,ts,ns,ld,site});
+  saveData(); closeModal(); renderPipeline(pipeView);
+}
+
+let _capStoreKey='';
+function openCapModal(storeKey){
+  _capStoreKey=storeKey;
+  document.getElementById('cf_name').value='';
+  document.getElementById('cap-modal-sub').textContent=`New LOB for ${storeKey==='hotlineLOBs'?'Hotline':'SnS'} — enter FTE target and projected HC for Jun–Dec.`;
+  for(let i=0;i<7;i++){document.getElementById('cf_fte_'+i).value=0;document.getElementById('cf_hc_'+i).value=0;}
+  document.getElementById('cap-modal-err').style.display='none';
+  document.getElementById('capModal').classList.add('open');
+  setTimeout(()=>document.getElementById('cf_name').focus(),50);
+}
+function closeCapModal(){ document.getElementById('capModal').classList.remove('open'); }
+
+function submitCapLOB(){
+  const name=document.getElementById('cf_name').value.trim();
+  const err=document.getElementById('cap-modal-err');
+  if(!name){err.textContent='Please enter a LOB name.';err.style.display='block';return;}
+  const fte=[0,1,2,3,4,5,6].map(i=>+document.getElementById('cf_fte_'+i).value||0);
+  const hc= [0,1,2,3,4,5,6].map(i=>+document.getElementById('cf_hc_'+i).value||0);
+  if(_capStoreKey.startsWith('__custom__')){
+    const ch=_capStoreKey.slice(10);
+    if(D.customChannels[ch][name]){err.textContent='A LOB with this name already exists.';err.style.display='block';return;}
+    D.customChannels[ch][name]={fte,hc};
+    saveData(); closeCapModal(); renderCustomCapacity(ch);
+  } else {
+    if(D[_capStoreKey][name]){err.textContent='A LOB with this name already exists.';err.style.display='block';return;}
+    D[_capStoreKey][name]={fte,hc};
+    saveData(); closeCapModal();
+    renderCapacity(_capStoreKey==='hotlineLOBs'?'hotline':'sns');
+  }
+}
+
+function deleteCapLOB(storeKey,name){
+  if(!confirm(`Remove "${name}" from capacity?\nThis cannot be undone.`)) return;
+  delete D[storeKey][name];
+  saveData();
+  renderCapacity(storeKey==='hotlineLOBs'?'hotline':'sns');
+}
+
+function deleteBatch(idx){
+  const b=D.batches[idx];
+  if(!confirm(`Remove "${b.name}" (${b.hc} HC)?\nThis cannot be undone.`)) return;
+  D.batches.splice(idx,1);
+  saveData(); renderPipeline(pipeView);
+}
+
+renderSidebarCustomChannels();
+renderOverview();
+
+// ── startup: username + firebase ──
+(function(){
+  const saved=localStorage.getItem(USER_KEY);
+  if(saved){
+    // already have a username — skip modal, try firebase
+    document.getElementById('userModal').classList.remove('open');
+    updateUserDisplay();
+    const cfg=loadFirebaseConfig();
+    if(cfg) initFirebase(cfg);
+  } else {
+    document.getElementById('userModal').classList.add('open');
+  }
+  updateSyncBadge();
+})();
+</script>
+</body>
+</html>
