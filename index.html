@@ -240,7 +240,6 @@ input.num-input{border:none;background:transparent;font-size:inherit;font-weight
     </div>
     <div id="sb-sync-badge" style="font-size:10px;color:var(--text-3);margin-top:3px">○ Local only</div>
     <div style="display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap">
-      <button onclick="document.getElementById('fbSetupModal').classList.add('open')" style="font-size:10px;color:var(--blue);background:none;border:none;cursor:pointer;padding:0;text-decoration:underline">Connect Firebase</button>
       <button onclick="resetData()" style="font-size:10px;color:var(--red);background:none;border:none;cursor:pointer;padding:0;text-decoration:underline">Reset data</button>
     </div>
   </div>
@@ -273,42 +272,6 @@ input.num-input{border:none;background:transparent;font-size:inherit;font-weight
   </div>
 </div>
 
-<!-- ═══ MODAL: FIREBASE SETUP ═══ -->
-<div class="modal-overlay" id="fbSetupModal">
-  <div class="modal" style="width:520px">
-    <h3>Connect Firebase for live sync</h3>
-    <p class="modal-sub">Paste your Firebase project config below to enable real-time collaboration and audit trail across all users.</p>
-    <div style="background:var(--gray-lt);border:1px solid var(--gray-bd);border-radius:var(--r-sm);padding:12px;font-size:11px;color:var(--text-2);margin-bottom:16px;line-height:1.7">
-      <strong>How to get your config:</strong><br>
-      1. Go to <strong>console.firebase.google.com</strong> → Create project<br>
-      2. Project Settings → Your apps → Add web app<br>
-      3. Build → Realtime Database → Create database → Start in <strong>test mode</strong><br>
-      4. Copy the config object and paste below
-    </div>
-    <div class="form-field" style="margin-bottom:12px">
-      <label>apiKey</label><input type="text" id="fb_apiKey" placeholder="AIzaSy..." style="width:100%">
-    </div>
-    <div class="form-grid">
-      <div class="form-field">
-        <label>authDomain</label><input type="text" id="fb_authDomain" placeholder="yourapp.firebaseapp.com">
-      </div>
-      <div class="form-field">
-        <label>databaseURL</label><input type="text" id="fb_databaseURL" placeholder="https://yourapp-default-rtdb.firebaseio.com">
-      </div>
-      <div class="form-field">
-        <label>projectId</label><input type="text" id="fb_projectId" placeholder="yourapp">
-      </div>
-      <div class="form-field">
-        <label>appId</label><input type="text" id="fb_appId" placeholder="1:123:web:abc">
-      </div>
-    </div>
-    <div id="fb-err" style="display:none;color:var(--red);font-size:12px;margin-top:8px"></div>
-    <div class="modal-footer">
-      <button class="btn-ghost" onclick="document.getElementById('fbSetupModal').classList.remove('open');saveFirebaseConfig()">Skip — use local only</button>
-      <button class="btn-primary" onclick="submitFirebaseConfig()">Connect & sync</button>
-    </div>
-  </div>
-</div>
 
 <!-- ═══ MODAL: ADD CLASS ═══ -->
 <div class="modal-overlay" id="addModal" onclick="if(event.target===this)closeModal()">
@@ -542,75 +505,85 @@ const DEFAULTS = {
 };
 
 // ═══════════════════════════════════════════════════
-// FIREBASE + STATE
+// SYNC — jsonblob.com (no account needed)
 // ═══════════════════════════════════════════════════
-let _fbApp=null, _fbDb=null, _fbConnected=false;
-const FB_CFG_KEY='globe_occ_fb_config';
-const DATA_KEY='hs_dashboard_v2';
-const USER_KEY='globe_occ_username';
+const BLOB_ID   = '019edb0e-494b-74de-8146-b9d15250a24b';
+const BLOB_URL  = `https://jsonblob.com/api/jsonBlob/${BLOB_ID}`;
+const DATA_KEY  = 'hs_dashboard_v2';
+const USER_KEY  = 'globe_occ_username';
+let _lastHash   = '';
+let _pollTimer  = null;
+let _syncReady  = false;
 
-function loadFirebaseConfig(){
-  try{ return JSON.parse(localStorage.getItem(FB_CFG_KEY)||'null'); }catch(e){ return null; }
-}
-function saveFirebaseConfig(cfg){
-  if(cfg) localStorage.setItem(FB_CFG_KEY,JSON.stringify(cfg));
-  updateSyncBadge();
-}
-
-function initFirebase(cfg){
-  if(!cfg||!cfg.databaseURL) return;
-  try{
-    _fbApp = firebase.initializeApp(cfg);
-    _fbDb  = firebase.database();
-    _fbConnected = true;
-    // Real-time listener — update all clients when data changes
-    _fbDb.ref('dashboardData').on('value', snap=>{
-      const val=snap.val();
-      if(val){
-        val.customChannels=val.customChannels||{};
-        D=val;
-        renderCurrent();
-        renderSidebarCustomChannels();
-      }
-    });
-    updateSyncBadge();
-  }catch(e){ console.warn('Firebase init failed:',e); _fbConnected=false; }
-}
+function _hashStr(s){ let h=0; for(let i=0;i<s.length;i++) h=(Math.imul(31,h)+s.charCodeAt(i))|0; return h; }
 
 function loadData(){
   try{
     const saved=localStorage.getItem(DATA_KEY);
-    if(saved){
-      const d=JSON.parse(saved);
-      if(!d.customChannels) d.customChannels={};
-      return d;
-    }
+    if(saved){ const d=JSON.parse(saved); if(!d.customChannels) d.customChannels={}; return d; }
   }catch(e){}
   return JSON.parse(JSON.stringify(DEFAULTS));
 }
 
 function saveData(action='Updated', detail=''){
   localStorage.setItem(DATA_KEY,JSON.stringify(D));
-  if(_fbConnected && _fbDb){
-    _fbDb.ref('dashboardData').set(D);
-    // write audit log entry
-    const entry={
-      ts: Date.now(),
-      user: getCurrentUser(),
-      action,
-      detail: detail||''
-    };
-    _fbDb.ref('auditLog').push(entry);
-  }
+  if(!_syncReady) return;
+  // append audit entry then push to blob
+  const entry={ts:Date.now(),user:getCurrentUser(),action,detail:detail||''};
+  const payload=Object.assign({},D,{_audit:[...(D._audit||[]),entry].slice(-200)});
+  const body=JSON.stringify(payload);
+  _lastHash=String(_hashStr(body));
+  fetch(BLOB_URL,{method:'PUT',headers:{'Content-Type':'application/json','Accept':'application/json'},body})
+    .catch(e=>console.warn('Sync write failed',e));
 }
 
 function resetData(){
   if(!confirm('Reset all data to defaults?')) return;
   localStorage.removeItem(DATA_KEY);
   D=loadData();
-  if(_fbConnected&&_fbDb) _fbDb.ref('dashboardData').set(D);
-  renderCurrent();
-  renderSidebarCustomChannels();
+  saveData('Reset','All data reset to defaults');
+  renderCurrent(); renderSidebarCustomChannels();
+}
+
+function _applyRemote(data){
+  if(!data) return;
+  data.customChannels=data.customChannels||{};
+  D=data;
+  localStorage.setItem(DATA_KEY,JSON.stringify(D));
+  renderCurrent(); renderSidebarCustomChannels();
+}
+
+function _poll(){
+  fetch(BLOB_URL,{headers:{'Accept':'application/json'},cache:'no-store'})
+    .then(r=>r.json())
+    .then(data=>{
+      const body=JSON.stringify(data);
+      const h=String(_hashStr(body));
+      if(h!==_lastHash){ _lastHash=h; _applyRemote(data); }
+    })
+    .catch(()=>{});
+}
+
+function _initSync(){
+  // First load: pull from blob, push local if blob is empty/init
+  fetch(BLOB_URL,{headers:{'Accept':'application/json'},cache:'no-store'})
+    .then(r=>r.json())
+    .then(data=>{
+      _syncReady=true;
+      updateSyncBadge(true);
+      if(data && data.batches && data.batches.length){
+        // remote has real data — use it
+        _lastHash=String(_hashStr(JSON.stringify(data)));
+        _applyRemote(data);
+      } else {
+        // blob is empty — push local data
+        const body=JSON.stringify(D);
+        _lastHash=String(_hashStr(body));
+        fetch(BLOB_URL,{method:'PUT',headers:{'Content-Type':'application/json','Accept':'application/json'},body}).catch(()=>{});
+      }
+      _pollTimer=setInterval(_poll,10000);
+    })
+    .catch(()=>{ updateSyncBadge(false); });
 }
 
 let D = loadData();
@@ -624,13 +597,9 @@ function submitUsername(){
   const name=document.getElementById('username_input').value.trim();
   const err=document.getElementById('user-err');
   if(!name){ err.textContent='Please enter your name.'; err.style.display='block'; return; }
-  localStorage.setItem(USER_KEY, name);
+  localStorage.setItem(USER_KEY,name);
   document.getElementById('userModal').classList.remove('open');
   updateUserDisplay();
-  // check if firebase is configured
-  const cfg=loadFirebaseConfig();
-  if(!cfg) document.getElementById('fbSetupModal').classList.add('open');
-  else initFirebase(cfg);
 }
 
 function updateUserDisplay(){
@@ -638,34 +607,12 @@ function updateUserDisplay(){
   if(el) el.textContent=getCurrentUser();
 }
 
-function updateSyncBadge(){
+function updateSyncBadge(ok){
   const el=document.getElementById('sb-sync-badge');
   if(!el) return;
-  if(_fbConnected){
-    el.textContent='● Live sync on';
-    el.style.color='var(--green)';
-  } else {
-    el.textContent='○ Local only';
-    el.style.color='var(--text-3)';
-  }
-}
-
-// ═══════════════════════════════════════════════════
-// FIREBASE SETUP MODAL
-// ═══════════════════════════════════════════════════
-function submitFirebaseConfig(){
-  const cfg={
-    apiKey:            document.getElementById('fb_apiKey').value.trim(),
-    authDomain:        document.getElementById('fb_authDomain').value.trim(),
-    databaseURL:       document.getElementById('fb_databaseURL').value.trim(),
-    projectId:         document.getElementById('fb_projectId').value.trim(),
-    appId:             document.getElementById('fb_appId').value.trim(),
-  };
-  const err=document.getElementById('fb-err');
-  if(!cfg.apiKey||!cfg.databaseURL){ err.textContent='apiKey and databaseURL are required.'; err.style.display='block'; return; }
-  saveFirebaseConfig(cfg);
-  document.getElementById('fbSetupModal').classList.remove('open');
-  initFirebase(cfg);
+  if(ok===true){  el.textContent='● Syncing (every 10s)'; el.style.color='var(--green)'; }
+  else if(ok===false){ el.textContent='⚠ Sync unavailable'; el.style.color='var(--red)'; }
+  else {          el.textContent='○ Connecting…';          el.style.color='var(--text-3)'; }
 }
 
 // ═══════════════════════════════════════════════════
@@ -673,35 +620,17 @@ function submitFirebaseConfig(){
 // ═══════════════════════════════════════════════════
 function renderAuditTrail(){
   const page=document.getElementById('audit');
-  if(!_fbConnected||!_fbDb){
-    page.innerHTML=`
-    <div class="page-header"><div class="page-header-text"><h2>Audit Trail</h2><p>Change history across all users</p></div></div>
-    <div style="padding:60px;text-align:center">
-      <div style="font-size:32px;margin-bottom:12px">🔌</div>
-      <div style="font-size:15px;font-weight:600;margin-bottom:6px">Firebase not connected</div>
-      <p style="font-size:13px;color:var(--text-2);margin-bottom:20px">Connect Firebase to enable live sync and audit trail across all users.</p>
-      <button class="btn-primary" onclick="document.getElementById('fbSetupModal').classList.add('open')">Connect Firebase</button>
-    </div>`;
-    return;
-  }
+  const entries=(D._audit||[]).slice().reverse();
+  window._auditEntries=entries;
   page.innerHTML=`
-  <div class="page-header"><div class="page-header-text"><h2>Audit Trail</h2><p>All changes made by all users in real time</p></div>
+  <div class="page-header"><div class="page-header-text"><h2>Audit Trail</h2><p>Last 200 changes · most recent first</p></div>
     <div style="display:flex;align-items:center;gap:8px">
       <span style="font-size:12px;color:var(--green);font-weight:500">● Live</span>
       <input type="text" id="audit-search" placeholder="Filter by user or action…" style="padding:6px 10px;border:1px solid var(--gray-bd);border-radius:var(--r-sm);font-size:12px;background:var(--card);color:var(--text);outline:none;width:200px" oninput="filterAudit(this.value)">
     </div>
   </div>
-  <div class="card" id="audit-table-wrap">
-    <div style="padding:40px;text-align:center;color:var(--text-3);font-size:13px">Loading audit log…</div>
-  </div>`;
-
-  _fbDb.ref('auditLog').orderByChild('ts').limitToLast(200).once('value', snap=>{
-    const entries=[];
-    snap.forEach(c=>entries.push({id:c.key,...c.val()}));
-    entries.reverse();
-    window._auditEntries=entries;
-    renderAuditTable(entries);
-  });
+  <div class="card" id="audit-table-wrap"></div>`;
+  renderAuditTable(entries);
 }
 
 function renderAuditTable(entries){
@@ -1590,19 +1519,17 @@ function deleteBatch(idx){
 renderSidebarCustomChannels();
 renderOverview();
 
-// ── startup: username + firebase ──
+// ── startup ──
 (function(){
   const saved=localStorage.getItem(USER_KEY);
   if(saved){
-    // already have a username — skip modal, try firebase
     document.getElementById('userModal').classList.remove('open');
     updateUserDisplay();
-    const cfg=loadFirebaseConfig();
-    if(cfg) initFirebase(cfg);
   } else {
     document.getElementById('userModal').classList.add('open');
   }
   updateSyncBadge();
+  _initSync();
 })();
 </script>
 </body>
