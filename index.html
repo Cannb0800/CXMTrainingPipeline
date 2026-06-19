@@ -1314,19 +1314,19 @@ function renderCapacity(pageId){
         ?`<td><input type="number" class="num-input" value="${v}" style="font-weight:600" onchange="D['${storeKey}']['${name}'].hc[${i}]=+this.value;saveData()"></td>`
         :`<td><strong>${v}</strong></td>`).join('');
 
-      // TPS Training row
-      const tpsLobsForThis=Object.entries(D.tpsTraining||{}).filter(([k,v])=>{
+      // TPS Training row — only on TPS LOBs
+      const tpsLobsForThis=vdr==='TPS'?Object.entries(D.tpsTraining||{}).filter(([k,v])=>{
         if(v.channel!==pageId) return false;
         const dWords=name.toLowerCase().split(/[\s\/\(\)]+/);
         const tWords=k.toLowerCase().split(/[\s\/]+/);
         return dWords.some(w=>w.length>2&&tWords.some(t=>t.includes(w)||w.includes(t)));
-      });
+      }):[];
       const tpsHC=tpsLobsForThis.length>0
         ? MONTHS.map((_,i)=>tpsLobsForThis.reduce((s,[,v])=>s+(v.hc[i]||0),0))
         : null;
 
-      // CNX Training row
-      const cnxHC=(D.cnxCapacity&&D.cnxCapacity.nhTraining&&D.cnxCapacity.nhTraining.some(v=>v>0))
+      // CNX Training row — only on CNX LOBs
+      const cnxHC=(vdr==='CNX'&&D.cnxCapacity&&D.cnxCapacity.nhTraining&&D.cnxCapacity.nhTraining.some(v=>v>0))
         ? D.cnxCapacity.nhTraining : null;
 
       // OCC Reco
