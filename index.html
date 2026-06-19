@@ -273,6 +273,50 @@ input.num-input{border:none;background:transparent;font-size:inherit;font-weight
 </div>
 
 
+<!-- ═══ MODAL: EDIT BATCH DETAILS ═══ -->
+<div class="modal-overlay" id="editBatchModal" onclick="if(event.target===this)closeEditBatchModal()">
+  <div class="modal" style="width:520px">
+    <h3>Edit batch details</h3>
+    <p class="modal-sub">Update the name, LOB, vendor, type, and site for this class.</p>
+    <input type="hidden" id="eb_idx">
+    <div class="form-field" style="margin-bottom:12px">
+      <label>Batch / Class name</label>
+      <input type="text" id="eb_name" style="width:100%" placeholder="e.g. SNR Batch 2">
+    </div>
+    <div class="form-field" style="margin-bottom:12px">
+      <label>LOB <span style="font-weight:400;color:var(--text-3)">(use / to separate multiple, e.g. Hotline SNR / SnS Postpaid)</span></label>
+      <input type="text" id="eb_lob" style="width:100%" placeholder="e.g. Hotline SNR">
+    </div>
+    <div class="form-grid">
+      <div class="form-field">
+        <label>Vendor</label>
+        <select id="eb_vendor" style="width:100%;padding:8px 10px;border:1px solid var(--gray-bd);border-radius:var(--r-sm);background:var(--card);color:var(--text);font-size:13px">
+          <option>CNX</option><option>TPS</option>
+        </select>
+      </div>
+      <div class="form-field">
+        <label>Type</label>
+        <select id="eb_type" style="width:100%;padding:8px 10px;border:1px solid var(--gray-bd);border-radius:var(--r-sm);background:var(--card);color:var(--text);font-size:13px">
+          <option>Backfill</option><option>RAMP</option><option>Attrition</option><option>New Hire</option>
+        </select>
+      </div>
+      <div class="form-field">
+        <label>Site</label>
+        <input type="text" id="eb_site" placeholder="e.g. Makati">
+      </div>
+      <div class="form-field">
+        <label>HC</label>
+        <input type="number" id="eb_hc" min="1" style="width:100%">
+      </div>
+    </div>
+    <div id="eb-err" style="display:none;color:var(--red);font-size:12px;margin-top:8px"></div>
+    <div class="modal-footer">
+      <button class="btn-ghost" onclick="closeEditBatchModal()">Cancel</button>
+      <button class="btn-primary" onclick="submitEditBatch()">Save changes</button>
+    </div>
+  </div>
+</div>
+
 <!-- ═══ MODAL: ADD CLASS ═══ -->
 <div class="modal-overlay" id="addModal" onclick="if(event.target===this)closeModal()">
   <div class="modal">
@@ -1015,6 +1059,7 @@ function renderPipeline(view){
             <!-- progress + actions row -->
             <div style="display:flex;align-items:center;justify-content:flex-end;gap:8px">
               ${p!=='none'?`<div class="prog-bar" style="flex:1;max-width:240px"><div class="prog-fill" style="width:${progPct}%;background:${progColor}"></div></div>`:'<div style="flex:1"></div>'}
+              <button class="del-btn" style="color:var(--blue);border-color:var(--blue-bd)" onclick="event.stopPropagation();openEditBatchModal(${batchIdx})">✎ Edit</button>
               <button class="del-btn" onclick="event.stopPropagation();deleteBatch(${batchIdx})">✕ Remove</button>
               <div class="batch-expand" id="exp_${batchIdx}">▼</div>
             </div>
@@ -1507,6 +1552,37 @@ function deleteCapLOB(storeKey,name){
   delete D[storeKey][name];
   saveData();
   renderCapacity(storeKey==='hotlineLOBs'?'hotline':'sns');
+}
+
+function openEditBatchModal(idx){
+  const b=D.batches[idx];
+  document.getElementById('eb_idx').value=idx;
+  document.getElementById('eb_name').value=b.name||'';
+  document.getElementById('eb_lob').value=b.lob||'';
+  document.getElementById('eb_vendor').value=b.vendor||'CNX';
+  document.getElementById('eb_type').value=b.type||'Backfill';
+  document.getElementById('eb_site').value=b.site||'';
+  document.getElementById('eb_hc').value=b.hc||0;
+  document.getElementById('eb-err').style.display='none';
+  document.getElementById('editBatchModal').classList.add('open');
+}
+function closeEditBatchModal(){ document.getElementById('editBatchModal').classList.remove('open'); }
+function submitEditBatch(){
+  const idx=+document.getElementById('eb_idx').value;
+  const name=document.getElementById('eb_name').value.trim();
+  const lob=document.getElementById('eb_lob').value.trim();
+  const err=document.getElementById('eb-err');
+  if(!name||!lob){ err.textContent='Name and LOB are required.'; err.style.display='block'; return; }
+  const b=D.batches[idx];
+  const prev=b.name;
+  b.name=name; b.lob=lob;
+  b.vendor=document.getElementById('eb_vendor').value;
+  b.type=document.getElementById('eb_type').value;
+  b.site=document.getElementById('eb_site').value.trim();
+  b.hc=+document.getElementById('eb_hc').value||b.hc;
+  saveData('Edited batch',`"${prev}" → name:${name}, LOB:${lob}`);
+  closeEditBatchModal();
+  renderPipeline(pipeView);
 }
 
 function deleteBatch(idx){
