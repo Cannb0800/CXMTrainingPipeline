@@ -1154,6 +1154,18 @@ function renderCapacity(pageId){
   const sub=isHotline?'CNX · Voice channels · FTE Required vs Active HC':'CNX · Shop & Sales chat · FTE Required vs Active HC';
   const storeKey=isHotline?'hotlineLOBs':'snsLOBs';
 
+  // For each LOB, compute projected HC including pipeline batches graduating each month
+  function pipelineHCForLOB(lobName, monthIdx){
+    const monthStart=new Date(2026,5+monthIdx,1);
+    const monthEnd=new Date(2026,5+monthIdx+1,1);
+    return D.batches.filter(b=>{
+      const ld=pd(b.ld);
+      if(ld<monthStart||ld>=monthEnd) return false;
+      const lobs=b.lob.split('/').map(s=>s.trim().toLowerCase());
+      return lobs.some(l=>l.includes(lobName.toLowerCase())||lobName.toLowerCase().includes(l));
+    }).reduce((s,b)=>s+b.hc,0);
+  }
+
   const rows=Object.entries(lobSet).map(([name,d])=>{
     const ouVals=MONTHS.map((_,i)=>ou(d.fte[i],d.hc[i]));
     const ouTotal=ouVals.reduce((a,b)=>a+b,0);
@@ -1167,10 +1179,30 @@ function renderCapacity(pageId){
       ?`<td><input type="number" class="num-input" value="${v}" style="font-weight:600" onchange="D['${storeKey}']['${name}'].hc[${i}]=+this.value;saveData()"></td>`
       :`<td><strong>${v}</strong></td>`).join('');
 
+    // OCC Reco: per month, if deficit exists, recommend HC needed = abs(deficit) minus any pipeline batches already graduating that month
+    const recoCells=MONTHS.map((_,i)=>{
+      const deficit=ouVals[i]; // negative = under
+      if(deficit>=0) return `<td style="color:var(--text-3);font-size:11px">—</td>`;
+      const needed=Math.abs(deficit);
+      const pipeline=pipelineHCForLOB(name,i);
+      const gap=Math.max(0,needed-pipeline);
+      if(gap===0) return `<td style="color:var(--green);font-size:11px;font-weight:600">✓ Covered</td>`;
+      return `<td><span style="display:inline-block;background:var(--red-lt,#fef2f2);border:1px solid #fca5a5;border-radius:4px;padding:1px 6px;font-size:11px;font-weight:700;color:#dc2626">+${gap} HC</span></td>`;
+    }).join('');
+    const recoTotal=MONTHS.reduce((s,_,i)=>{
+      const deficit=ouVals[i];
+      if(deficit>=0) return s;
+      const pipeline=pipelineHCForLOB(name,i);
+      return s+Math.max(0,Math.abs(deficit)-pipeline);
+    },0);
+    const recoTotalCell=recoTotal>0
+      ?`<td><span style="font-size:11px;font-weight:700;color:#dc2626">+${recoTotal} HC</span></td>`
+      :`<td style="color:var(--green);font-size:11px;font-weight:600">✓</td>`;
+
     const safeName=name.replace(/'/g,"\\'");
     return `
     <tr>
-      <td class="l" style="font-weight:600" rowspan="3">
+      <td class="l" style="font-weight:600" rowspan="4">
         <div style="display:flex;align-items:center;gap:6px">
           <span>${name}</span>
           <button class="del-btn" style="font-size:10px;padding:1px 6px" onclick="deleteCapLOB('${storeKey}','${safeName}')">✕</button>
@@ -1181,8 +1213,16 @@ function renderCapacity(pageId){
     <tr>
       <td class="l cap-metric">Active HC</td>${hcCells}<td><strong>${d.hc.reduce((a,b)=>a+b,0)}</strong></td>
     </tr>
-    <tr style="border-bottom:2px solid var(--border)">
+    <tr>
       <td class="l cap-metric">Over / (Under)</td>${ouVals.map(v=>ouCell(v)).join('')}<td><span class="${ouCls}">${ouTotal>0?'+':''}${ouTotal}</span></td>
+    </tr>
+    <tr style="border-bottom:2px solid var(--border);background:rgba(239,68,68,0.03)">
+      <td class="l cap-metric" style="color:#dc2626;font-weight:600;font-size:11px">
+        <span style="display:inline-flex;align-items:center;gap:4px">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2.5"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          OCC Reco class
+        </span>
+      </td>${recoCells}${recoTotalCell}
     </tr>`;
   }).join('');
 
