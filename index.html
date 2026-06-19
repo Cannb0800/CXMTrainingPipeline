@@ -1661,26 +1661,72 @@ function handleTpsFile(input){
       // Find CXP sheet (main sheet with all LOB data)
       const sheetName=wb.SheetNames.find(s=>s.trim()==='CXP')||wb.SheetNames[0];
       const ws=wb.Sheets[sheetName];
-      const raw=XLSX.utils.sheet_to_json(ws,{header:1,raw:false,dateNF:'yyyy-mm-dd'});
+      // Use raw:true so dates come back as JS Date objects
+      const raw=XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:null});
 
       // Find row with 2026 month dates to get column indices for Jun-Dec
-      // Dashboard months: Jun=0…Dec=6
       const dashMonths=['Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-      let monthCols={}; // { 'Jun': colIdx, ... }
-      for(let r=0;r<20;r++){
+      const monthNums={5:'Jun',6:'Jul',7:'Aug',8:'Sep',9:'Oct',10:'Nov',11:'Dec'};
+      let monthCols={};
+      for(let r=0;r<30;r++){
         const row=raw[r]||[];
         for(let c=0;c<row.length;c++){
-          const v=String(row[c]||'');
-          for(const [mi,m] of Object.entries({5:'Jun',6:'Jul',7:'Aug',8:'Sep',9:'Oct',10:'Nov',11:'Dec'})){
-            if(v.startsWith('2026-'+mi.padStart(2,'0'))) monthCols[m]=c;
+          const v=row[c];
+          if(!v) continue;
+          let mo=null,yr=null;
+          if(v instanceof Date){ yr=v.getFullYear(); mo=v.getMonth()+1; }
+          else {
+            // Try string like "2026-06-01" or number (Excel serial)
+            const s=String(v);
+            const m=s.match(/^(2026)[.\-\/](0?[5-9]|1[0-2])/);
+            if(m){ yr=2026; mo=parseInt(m[2]); }
+            // Also match year label row: cell value is 2026 (number)
           }
+          if(yr===2026 && monthNums[mo]) monthCols[monthNums[mo]]=c;
         }
         if(Object.keys(monthCols).length>=7) break;
       }
 
+      // Fallback: if still not found, look for month names row after a row containing 2026
+      if(Object.keys(monthCols).length<3){
+        let yr2026Row=-1;
+        for(let r=0;r<30;r++){
+          const row=raw[r]||[];
+          if(row.some(v=>String(v||'').includes('2026'))){ yr2026Row=r; break; }
+        }
+        if(yr2026Row>=0){
+          // Look a few rows ahead for month names or dates
+          for(let r=yr2026Row;r<yr2026Row+10;r++){
+            const row=raw[r]||[];
+            for(let c=0;c<row.length;c++){
+              const v=row[c];
+              if(v instanceof Date && v.getFullYear()===2026){
+                const mo=v.getMonth()+1;
+                if(monthNums[mo]) monthCols[monthNums[mo]]=c;
+              }
+            }
+          }
+        }
+      }
+
       if(Object.keys(monthCols).length===0){
-        alert('Could not find 2026 month columns in this file. Make sure you are uploading the Teleperformance Capacity Plan xlsx.');
-        return;
+        // Last resort: find columns by position — CXP sheet 2026 months are typically at fixed offsets
+        // From our Python analysis: Jan=83,Feb=87,Mar=91,Apr=95,May=100,Jun=104,Jul=108,Aug=113,Sep=117,Oct=122,Nov=126,Dec=130
+        const fixedCols={Jun:104,Jul:108,Aug:113,Sep:117,Oct:122,Nov:126,Dec:130};
+        // Verify by checking if any of these columns have numeric-looking values in training rows
+        let hasData=false;
+        for(const row of raw){
+          if(!row) continue;
+          const metric=String(row[4]||'').toLowerCase();
+          if(metric.includes('training')){
+            if(Object.values(fixedCols).some(c=>row[c]>0)){ hasData=true; break; }
+          }
+        }
+        if(hasData) Object.assign(monthCols,fixedCols);
+        else{
+          alert('Could not find 2026 month columns in this file.\n\nMake sure you are uploading the Teleperformance Capacity Plan xlsx (the one with the CXP sheet).');
+          return;
+        }
       }
 
       // Extract training rows: col4 contains 'Training' or 'Ongoing Training', col0 has LOB name
