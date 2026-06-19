@@ -544,6 +544,7 @@ const DEFAULTS = {
   },
   customChannels: {},
   tpsTraining: {},
+  cnxCapacity: null,
   roster: [
     {jr:'R1674467',tower:'GOMO',             batch:'GOMO Wave 2',      lob:'GFP/GOMO',          req:11,run:11,ts:'Apr 13',ld:'May 19',status:'Ongoing', site:'Makati'},
     {jr:'R1713749',tower:'COEX CHAT',        batch:'COEX Wave 13',     lob:'COEX CHAT',          req:22,run:21,ts:'May 04',ld:'Jul 06',status:'Ongoing', site:'Cebu'},
@@ -575,7 +576,7 @@ function _hashStr(s){ let h=0; for(let i=0;i<s.length;i++) h=(Math.imul(31,h)+s.
 function loadData(){
   try{
     const saved=localStorage.getItem(DATA_KEY);
-    if(saved){ const d=JSON.parse(saved); if(!d.customChannels) d.customChannels={}; if(!d.tpsTraining) d.tpsTraining={}; return d; }
+    if(saved){ const d=JSON.parse(saved); if(!d.customChannels) d.customChannels={}; if(!d.tpsTraining) d.tpsTraining={}; if(d.cnxCapacity===undefined) d.cnxCapacity=null; return d; }
   }catch(e){}
   return JSON.parse(JSON.stringify(DEFAULTS));
 }
@@ -1248,7 +1249,6 @@ function renderCapacity(pageId){
     // TPS Training row: sum training HC for this channel+LOB from uploaded file
     const tpsLobsForThis=Object.entries(D.tpsTraining||{}).filter(([k,v])=>{
       if(v.channel!==pageId) return false;
-      // loose match: TPS LOB name contains dashboard LOB name words or vice versa
       const dWords=name.toLowerCase().split(/[\s\/]+/);
       const tWords=k.toLowerCase().split(/[\s\/]+/);
       return dWords.some(w=>w.length>2&&tWords.some(t=>t.includes(w)||w.includes(t)));
@@ -1256,6 +1256,10 @@ function renderCapacity(pageId){
     const tpsHC=tpsLobsForThis.length>0
       ? MONTHS.map((_,i)=>tpsLobsForThis.reduce((s,[,v])=>s+(v.hc[i]||0),0))
       : null;
+
+    // CNX Training row: NH Training HC from Globe file (applies to all LOBs as combined)
+    const cnxHC=(D.cnxCapacity&&D.cnxCapacity.nhTraining&&D.cnxCapacity.nhTraining.some(v=>v>0))
+      ? D.cnxCapacity.nhTraining : null;
 
     // OCC Reco: per month, if deficit exists, recommend HC needed = abs(deficit) minus any pipeline batches already graduating that month
     const recoCells=MONTHS.map((_,i)=>{
@@ -1278,7 +1282,16 @@ function renderCapacity(pageId){
       :`<td style="color:var(--green);font-size:11px;font-weight:600">✓</td>`;
 
     const safeName=name.replace(/'/g,"\\'");
-    const rowspan=tpsHC?5:4;
+    const cnxRow=cnxHC?`
+    <tr class="cap-row-tps" style="background:#f0f9ff">
+      <td class="l cap-metric" style="color:#0369a1;font-weight:700;font-size:10px;text-transform:uppercase;letter-spacing:.04em">
+        <span style="display:inline-flex;align-items:center;gap:4px">
+          <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#0369a1" stroke-width="2.5"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+          CNX Training
+        </span>
+      </td>${cnxHC.map(v=>v>0?`<td><span style="display:inline-block;background:#e0f2fe;border:1px solid #7dd3fc;border-radius:4px;padding:2px 8px;font-size:12px;font-weight:700;color:#0369a1">${v}</span></td>`:`<td style="color:var(--text-3);font-size:11px">—</td>`).join('')}<td><span style="font-size:12px;font-weight:700;color:#0369a1">${cnxHC.reduce((a,b)=>a+b,0)}</span></td>
+    </tr>`:'';
+    const rowspan=4+(tpsHC?1:0)+(cnxHC?1:0);
     const tpsRow=tpsHC?`
     <tr class="cap-row-tps">
       <td class="l cap-metric" style="color:#6366f1;font-weight:700;font-size:10px;text-transform:uppercase;letter-spacing:.04em">
@@ -1304,6 +1317,7 @@ function renderCapacity(pageId){
     <tr class="cap-row-ou">
       <td class="l cap-metric" style="color:var(--text-3);font-size:10px;text-transform:uppercase;letter-spacing:.04em">Over / (Under)</td>${ouVals.map(v=>ouCell(v)).join('')}<td><span class="${ouCls}">${ouTotal>0?'+':''}${ouTotal}</span></td>
     </tr>
+    ${cnxRow}
     ${tpsRow}
     <tr class="cap-row-reco" style="border-bottom:2px solid var(--border)">
       <td class="l cap-metric" style="color:#dc2626;font-weight:700;font-size:10px;text-transform:uppercase;letter-spacing:.04em">
@@ -1319,11 +1333,15 @@ function renderCapacity(pageId){
   <div class="page-header">
     <div class="page-header-text"><h2>${title}</h2><p>${sub} · Jun–Dec 2026</p></div>
     <div style="display:flex;gap:8px;align-items:center;flex-shrink:0;flex-wrap:wrap">
-      <button class="btn-ghost" style="display:flex;align-items:center;gap:6px;font-size:12px;padding:7px 14px;color:#6366f1;border-color:#c7d2fe" onclick="openTpsUpload()">
+      <button class="btn-ghost" style="display:flex;align-items:center;gap:6px;font-size:12px;padding:7px 14px;color:#6366f1;border-color:#c7d2fe" onclick="openCapUpload('tps')">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-        ${Object.keys(D.tpsTraining||{}).length>0?'Update TPS file':'Upload TPS file'}
+        ${Object.keys(D.tpsTraining||{}).length>0?'✓ TPS file':'Upload TPS file'}
       </button>
-      ${Object.keys(D.tpsTraining||{}).length>0?`<button class="del-btn" style="font-size:11px" onclick="clearTpsData()">✕ Clear TPS</button>`:''}
+      <button class="btn-ghost" style="display:flex;align-items:center;gap:6px;font-size:12px;padding:7px 14px;color:#0369a1;border-color:#bae6fd" onclick="openCapUpload('cnx')">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        ${D.cnxCapacity?'✓ Globe CNX file':'Upload Globe CNX file'}
+      </button>
+      ${Object.keys(D.tpsTraining||{}).length>0||D.cnxCapacity?`<button class="del-btn" style="font-size:11px" onclick="clearCapData()">✕ Clear files</button>`:''}
       <button class="btn-primary" style="display:flex;align-items:center;gap:6px;font-size:12px;padding:7px 14px" onclick="openCapModal('${storeKey}')">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         Add LOB
@@ -1331,7 +1349,7 @@ function renderCapacity(pageId){
       ${editBtn(pageId)}
     </div>
   </div>
-  <input type="file" id="tpsUploadInput" accept=".xlsx,.xls" style="display:none" onchange="handleTpsFile(this)">
+  <input type="file" id="capUploadInput" accept=".xlsx,.xls" style="display:none" onchange="handleCapFile(this)">
   <div class="edit-notice"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> Edit mode on — click any FTE Required or Active HC value to update. Over/(Under) recalculates automatically.</div>
   <div style="background:var(--amber-lt);border:1px solid var(--amber-bd);border-radius:var(--r-sm);padding:10px 14px;font-size:12px;color:var(--amber);margin-bottom:20px">
     Row 1 = FTE Required (target) &nbsp;·&nbsp; Row 2 = Active HC (projected) &nbsp;·&nbsp; Row 3 = Over/(Under) — auto-calculated
@@ -1714,122 +1732,166 @@ function tpsLobChannel(name){
   return 'other';
 }
 
-function openTpsUpload(){ document.getElementById('tpsUploadInput').click(); }
+function openCapUpload(type){ document.getElementById('capUploadInput').dataset.type=type; document.getElementById('capUploadInput').click(); }
 
-function handleTpsFile(input){
+function handleCapFile(input){
   const file=input.files[0]; if(!file) return;
   const reader=new FileReader();
   reader.onload=function(e){
     try{
       const wb=XLSX.read(e.target.result,{type:'array',cellDates:true});
-      // Find CXP sheet (main sheet with all LOB data)
-      const sheetName=wb.SheetNames.find(s=>s.trim()==='CXP')||wb.SheetNames[0];
-      const ws=wb.Sheets[sheetName];
-      // Use raw:true so dates come back as JS Date objects
-      const raw=XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:null});
-
-      // Find row with 2026 month dates to get column indices for Jun-Dec
-      const dashMonths=['Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-      const monthNums={5:'Jun',6:'Jul',7:'Aug',8:'Sep',9:'Oct',10:'Nov',11:'Dec'};
-      let monthCols={};
-      for(let r=0;r<30;r++){
-        const row=raw[r]||[];
-        for(let c=0;c<row.length;c++){
-          const v=row[c];
-          if(!v) continue;
-          let mo=null,yr=null;
-          if(v instanceof Date){ yr=v.getFullYear(); mo=v.getMonth()+1; }
-          else {
-            // Try string like "2026-06-01" or number (Excel serial)
-            const s=String(v);
-            const m=s.match(/^(2026)[.\-\/](0?[5-9]|1[0-2])/);
-            if(m){ yr=2026; mo=parseInt(m[2]); }
-            // Also match year label row: cell value is 2026 (number)
-          }
-          if(yr===2026 && monthNums[mo]) monthCols[monthNums[mo]]=c;
-        }
-        if(Object.keys(monthCols).length>=7) break;
+      const sheetNames=wb.SheetNames.map(s=>s.trim());
+      // Auto-detect: Globe CNX file has 'Training' + 'Month' sheets; TPS has 'CXP'
+      if(sheetNames.includes('Training') && sheetNames.includes('Month')){
+        parseGlobeFile(wb, file.name);
+      } else if(sheetNames.includes('CXP')){
+        parseTpsFile(wb, file.name);
+      } else {
+        // Try TPS first (CXP-style), then Globe
+        alert('Could not detect file format.\n\nSupported files:\n• Teleperformance Capacity Plan (has CXP sheet)\n• Globe Capacity Plan (has Training + Month sheets)');
       }
-
-      // Fallback: if still not found, look for month names row after a row containing 2026
-      if(Object.keys(monthCols).length<3){
-        let yr2026Row=-1;
-        for(let r=0;r<30;r++){
-          const row=raw[r]||[];
-          if(row.some(v=>String(v||'').includes('2026'))){ yr2026Row=r; break; }
-        }
-        if(yr2026Row>=0){
-          // Look a few rows ahead for month names or dates
-          for(let r=yr2026Row;r<yr2026Row+10;r++){
-            const row=raw[r]||[];
-            for(let c=0;c<row.length;c++){
-              const v=row[c];
-              if(v instanceof Date && v.getFullYear()===2026){
-                const mo=v.getMonth()+1;
-                if(monthNums[mo]) monthCols[monthNums[mo]]=c;
-              }
-            }
-          }
-        }
-      }
-
-      if(Object.keys(monthCols).length===0){
-        // Last resort: find columns by position — CXP sheet 2026 months are typically at fixed offsets
-        // From our Python analysis: Jan=83,Feb=87,Mar=91,Apr=95,May=100,Jun=104,Jul=108,Aug=113,Sep=117,Oct=122,Nov=126,Dec=130
-        const fixedCols={Jun:104,Jul:108,Aug:113,Sep:117,Oct:122,Nov:126,Dec:130};
-        // Verify by checking if any of these columns have numeric-looking values in training rows
-        let hasData=false;
-        for(const row of raw){
-          if(!row) continue;
-          const metric=String(row[4]||'').toLowerCase();
-          if(metric.includes('training')){
-            if(Object.values(fixedCols).some(c=>row[c]>0)){ hasData=true; break; }
-          }
-        }
-        if(hasData) Object.assign(monthCols,fixedCols);
-        else{
-          alert('Could not find 2026 month columns in this file.\n\nMake sure you are uploading the Teleperformance Capacity Plan xlsx (the one with the CXP sheet).');
-          return;
-        }
-      }
-
-      // Extract training rows: col4 contains 'Training' or 'Ongoing Training', col0 has LOB name
-      const result={}; // { lobName: { channel, hc:[Jun..Dec] } }
-      for(const row of raw){
-        const lobName=String(row[0]||'').trim();
-        const metric=String(row[4]||'').trim().toLowerCase();
-        if(!lobName||lobName==='nan') continue;
-        if(!metric.includes('training')||metric.includes('attrition')||metric.includes('aux 3')||metric.includes('planned')) continue;
-        const ch=tpsLobChannel(lobName);
-        if(ch==='other') continue;
-        if(!result[lobName]) result[lobName]={channel:ch,hc:[0,0,0,0,0,0,0]};
-        dashMonths.forEach((m,i)=>{
-          const c=monthCols[m];
-          if(c===undefined) return;
-          const v=parseFloat(row[c]);
-          if(!isNaN(v)&&v>0) result[lobName].hc[i]=Math.max(result[lobName].hc[i],Math.round(v));
-        });
-      }
-
-      // Remove entries with all zeros
-      Object.keys(result).forEach(k=>{ if(result[k].hc.every(v=>v===0)) delete result[k]; });
-
-      D.tpsTraining=result;
-      saveData('Uploaded TPS file',`Loaded ${Object.keys(result).length} LOBs from ${file.name}`);
-      renderCurrent();
-      alert(`TPS training data loaded: ${Object.keys(result).length} LOBs found.`);
-    }catch(err){
-      alert('Failed to parse file: '+err.message);
-    }
+    }catch(err){ alert('Failed to parse file: '+err.message); }
     input.value='';
   };
   reader.readAsArrayBuffer(file);
 }
 
-function clearTpsData(){
-  if(!confirm('Remove TPS training data?')) return;
-  D.tpsTraining={};
-  saveData('Cleared TPS data','');
+function parseGlobeFile(wb, fname){
+  const dashMonths=['Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+  // ── Month sheet: FTE Req, Production HC, NH Training HC for Jun-Dec 2026 ──
+  const mws=wb.Sheets['Month'];
+  const mraw=XLSX.utils.sheet_to_json(mws,{header:1,raw:true,defval:null});
+
+  // Find 2026 Jun-Dec column indices
+  let mCols={};
+  for(let r=0;r<5;r++){
+    const row=mraw[r]||[];
+    for(let c=0;c<row.length;c++){
+      const v=row[c];
+      if(v instanceof Date && v.getFullYear()===2026){
+        const mo=v.getMonth(); // 0-indexed; Jun=5..Dec=11
+        const name=dashMonths[mo-5];
+        if(name) mCols[name]=c;
+      } else if(typeof v==='string'){
+        const m=v.match(/^(Jun|Jul|Aug|Sep|Oct|Nov|Dec)[- ]26$/i);
+        if(m){ const name=m[1]; if(dashMonths.includes(name)) mCols[name]=c; }
+      }
+    }
+    if(Object.keys(mCols).length>=7) break;
+  }
+  // Fallback: find by position — Month sheet 2026 cols found at 40-46 in our analysis
+  if(Object.keys(mCols).length<3){
+    // Search all rows for a date in 2026
+    for(let r=0;r<5;r++){
+      const row=mraw[r]||[];
+      for(let c=0;c<row.length;c++){
+        const v=row[c];
+        if(v instanceof Date && v.getFullYear()===2026 && v.getMonth()>=5 && v.getMonth()<=11){
+          const name=dashMonths[v.getMonth()-5];
+          if(name && !mCols[name]) mCols[name]=c;
+        }
+      }
+    }
+  }
+
+  const getMonthVals=(row)=>dashMonths.map(m=>{
+    const c=mCols[m]; if(c===undefined) return 0;
+    const v=row[c]; try{ const n=parseFloat(v); return isNaN(n)?0:Math.round(n); }catch{ return 0; }
+  });
+
+  let fteReq=[0,0,0,0,0,0,0], prodHC=[0,0,0,0,0,0,0], nhTraining=[0,0,0,0,0,0,0];
+  for(const row of mraw){
+    if(!row) continue;
+    const lbl=String(row[1]||'').trim();
+    if(lbl==='FTE Requirement'||lbl==='FTE requirement') fteReq=getMonthVals(row);
+    else if(lbl==='Production HC') prodHC=getMonthVals(row);
+    else if(lbl==='NH Training HC') nhTraining=getMonthVals(row);
+  }
+
+  // ── Training sheet: individual classes ──
+  const tws=wb.Sheets['Training'];
+  const traw=XLSX.utils.sheet_to_json(tws,{header:1,raw:true,defval:null});
+  const classes=[];
+  const today=new Date(2026,5,18);
+  for(let r=2;r<traw.length;r++){
+    const row=traw[r]||[];
+    const name=String(row[1]||'').trim(); if(!name||name==='nan') continue;
+    const site=String(row[2]||'').trim();
+    const hc=parseInt(row[3])||0;
+    const type=String(row[6]||'').trim();
+    let ts=row[10], ns=row[11], ld=row[13];
+    // ld may be in col 13 (date) or col 12 (string like "06/01/26, Mon")
+    if(!(ld instanceof Date)&&row[12]){ const s=String(row[12]); const m=s.match(/(\d{4}-\d{2}-\d{2})/); if(m) ld=new Date(m[1]); }
+    if(!(ld instanceof Date)) continue;
+    if(ld.getFullYear()<2026||(ld.getFullYear()===2026&&ld.getMonth()<5)) continue; // only Jun-Dec 2026
+    const fmtDate=d=>d instanceof Date?d.toISOString().split('T')[0]:null;
+    classes.push({name,site,hc,type,ts:fmtDate(ts instanceof Date?ts:null),ns:fmtDate(ns instanceof Date?ns:null),ld:fmtDate(ld)});
+  }
+
+  D.cnxCapacity={fteReq,prodHC,nhTraining,classes,loaded:true,fname};
+  saveData('Uploaded Globe CNX file',`${classes.length} classes, loaded from ${fname}`);
+  renderCurrent();
+  alert(`Globe CNX file loaded:\n• ${classes.length} classes going live Jun–Dec 2026\n• Monthly FTE/HC data extracted`);
+}
+
+function parseTpsFile(wb, fname){
+  const sheetName=wb.SheetNames.find(s=>s.trim()==='CXP')||wb.SheetNames[0];
+  const ws=wb.Sheets[sheetName];
+  const raw=XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:null});
+  const dashMonths=['Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const monthNums={5:'Jun',6:'Jul',7:'Aug',8:'Sep',9:'Oct',10:'Nov',11:'Dec'};
+  let monthCols={};
+  for(let r=0;r<30;r++){
+    const row=raw[r]||[];
+    for(let c=0;c<row.length;c++){
+      const v=row[c]; if(!v) continue;
+      let mo=null,yr=null;
+      if(v instanceof Date){ yr=v.getFullYear(); mo=v.getMonth()+1; }
+      else{ const s=String(v); const m=s.match(/^(2026)[.\-\/](0?[5-9]|1[0-2])/); if(m){yr=2026;mo=parseInt(m[2]);} }
+      if(yr===2026&&monthNums[mo]) monthCols[monthNums[mo]]=c;
+    }
+    if(Object.keys(monthCols).length>=7) break;
+  }
+  if(Object.keys(monthCols).length<3){
+    for(let r=0;r<30;r++){
+      const row=raw[r]||[];
+      if(row.some(v=>String(v||'').includes('2026'))){
+        for(let r2=r;r2<r+10;r2++){
+          (raw[r2]||[]).forEach((v,c)=>{ if(v instanceof Date&&v.getFullYear()===2026){const mo=v.getMonth()+1;if(monthNums[mo])monthCols[monthNums[mo]]=c;} });
+        }
+        break;
+      }
+    }
+  }
+  if(Object.keys(monthCols).length===0){
+    const fixedCols={Jun:104,Jul:108,Aug:113,Sep:117,Oct:122,Nov:126,Dec:130};
+    let hasData=false;
+    for(const row of raw){ if(!row) continue; if(String(row[4]||'').toLowerCase().includes('training')&&Object.values(fixedCols).some(c=>row[c]>0)){hasData=true;break;} }
+    if(hasData) Object.assign(monthCols,fixedCols);
+    else{ alert('Could not find 2026 month columns in the TPS file (CXP sheet).'); return; }
+  }
+  const result={};
+  for(const row of raw){
+    const lobName=String(row[0]||'').trim();
+    const metric=String(row[4]||'').trim().toLowerCase();
+    if(!lobName||lobName==='nan') continue;
+    if(!metric.includes('training')||metric.includes('attrition')||metric.includes('aux 3')||metric.includes('planned')) continue;
+    const ch=tpsLobChannel(lobName); if(ch==='other') continue;
+    if(!result[lobName]) result[lobName]={channel:ch,hc:[0,0,0,0,0,0,0]};
+    dashMonths.forEach((m,i)=>{ const c=monthCols[m]; if(c===undefined) return; const v=parseFloat(row[c]); if(!isNaN(v)&&v>0) result[lobName].hc[i]=Math.max(result[lobName].hc[i],Math.round(v)); });
+  }
+  Object.keys(result).forEach(k=>{ if(result[k].hc.every(v=>v===0)) delete result[k]; });
+  D.tpsTraining=result;
+  saveData('Uploaded TPS file',`Loaded ${Object.keys(result).length} LOBs from ${fname}`);
+  renderCurrent();
+  alert(`TPS training data loaded: ${Object.keys(result).length} LOBs found.`);
+}
+
+function clearCapData(){
+  if(!confirm('Remove uploaded capacity files (TPS + Globe CNX)?')) return;
+  D.tpsTraining={}; D.cnxCapacity=null;
+  saveData('Cleared capacity files','');
   renderCurrent();
 }
 
