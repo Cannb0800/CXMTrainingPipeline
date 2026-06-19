@@ -512,52 +512,75 @@ input.num-input{border:none;background:transparent;font-size:inherit;font-weight
 // DEFAULT DATA
 // ═══════════════════════════════════════════════════
 const DEFAULTS = {
+  // ── CNX (Concentrix) batches ──────────────────────────────────────────────
+  // ── TPS (Teleperformance) batches ─────────────────────────────────────────
   batches: [
-    {name:'Backfill 9',      lob:'SnS Postpaid / Hotline SNR', hc:20,vendor:'CNX',type:'Backfill',  ts:'2026-05-04',ns:'2026-06-09',ld:'2026-07-07',site:'Makati'},
-    {name:'MPO',             lob:'Hotline SNR',                hc:11,vendor:'CNX',type:'Upskilling',ts:'2026-07-13',ns:'2026-07-20',ld:'2026-07-27',site:'Shaw'},
-    {name:'Backfill 10',     lob:'SnS Broadband',              hc:15,vendor:'CNX',type:'Backfill',  ts:'2026-07-06',ns:'2026-08-03',ld:'2026-08-31',site:'Shaw'},
-    {name:'Backfill 11',     lob:'SnS Postpaid',               hc:15,vendor:'CNX',type:'Backfill',  ts:'2026-07-06',ns:'2026-08-03',ld:'2026-08-31',site:'Cebu'},
-    {name:'Seed 1',          lob:'Hotline SNB / SnS Broadband',hc:10,vendor:'CNX',type:'Upskilling',ts:'2026-08-17',ns:'2026-08-24',ld:'2026-08-31',site:'Makati'},
-    {name:'Seed 2',          lob:'Hotline SNR / SnS Postpaid', hc:10,vendor:'CNX',type:'Upskilling',ts:'2026-08-17',ns:'2026-08-24',ld:'2026-08-31',site:'Makati'},
-    {name:'RAMP 13',         lob:'Hotline SNR / SnS Broadband',hc:15,vendor:'CNX',type:'RAMP',      ts:'2026-08-31',ns:'2026-09-07',ld:'2026-10-05',site:'Cebu'},
-    {name:'Backfill 12',     lob:'Hotline SNR',                hc:15,vendor:'CNX',type:'Backfill',  ts:'2026-09-07',ns:'2026-10-05',ld:'2026-11-02',site:'Shaw'},
-    {name:'Backfill 13',     lob:'Hotline SNB / SnS',          hc:15,vendor:'CNX',type:'Backfill',  ts:'2026-09-07',ns:'2026-10-05',ld:'2026-11-02',site:'Cebu'},
-    {name:'SNB/BB Batch 1',  lob:'Hotline SNB / SnS Broadband',hc:10,vendor:'TPS',type:'RAMP',      ts:'2026-04-06',ns:'2026-05-11',ld:'2026-06-08',site:'Cebu'},
-    {name:'SNR Batch 1',     lob:'Hotline SNR',                hc:23,vendor:'TPS',type:'RAMP',      ts:'2026-04-13',ns:'2026-05-18',ld:'2026-06-15',site:'Makati'},
-    {name:'SnS PrePaid B1',  lob:'SnS PrePaid',                hc:21,vendor:'TPS',type:'RAMP',      ts:'2026-03-30',ns:'2026-05-04',ld:'2026-06-01',site:'Shaw'},
-    {name:'SnS PrePaid B2',  lob:'SnS PrePaid',                hc:13,vendor:'TPS',type:'RAMP',      ts:'2026-05-18',ns:'2026-06-22',ld:'2026-07-20',site:'Shaw'},
-    {name:'SnS PrePaid B3',  lob:'SnS PrePaid',                hc:10,vendor:'TPS',type:'Backfill',  ts:'2026-06-15',ns:'2026-07-06',ld:'2026-08-03',site:'Cebu'},
+    // CNX — currently live / nesting
+    {name:'RAMP 13',           lob:'Hotline SNR / Hotline Stores',         hc:21,vendor:'CNX',type:'RAMP / Backfill',ts:'2026-04-13',ns:'2026-06-08',ld:'2026-07-06',site:'Cebu'},
+    {name:'Backfill 9',        lob:'SnS Postpaid / Hotline SNR',           hc:20,vendor:'CNX',type:'RAMP / Backfill',ts:'2026-05-04',ns:'2026-06-08',ld:'2026-07-06',site:'Makati'},
+    // CNX — upcoming seeds / backfills
+    {name:'Seed Class 1',      lob:'Hotline SNB / SnS Broadband',          hc:22,vendor:'CNX',type:'Seed',           ts:'2026-06-22',ns:'2026-07-20',ld:'2026-08-17',site:'Shaw'},
+    {name:'Seed Class 2',      lob:'Hotline SNR / SnS Postpaid',           hc:22,vendor:'CNX',type:'Seed',           ts:'2026-06-22',ns:'2026-07-20',ld:'2026-08-17',site:'Makati'},
+    {name:'Backfill 10',       lob:'SnS Broadband',                        hc:13,vendor:'CNX',type:'Backfill',       ts:'2026-07-20',ns:'2026-08-17',ld:'2026-09-14',site:'Shaw'},
+    {name:'Backfill 11',       lob:'SnS Postpaid',                         hc:12,vendor:'CNX',type:'Backfill',       ts:'2026-07-20',ns:'2026-08-17',ld:'2026-09-14',site:'Cebu'},
+    {name:'RAMP (MPO)',        lob:'Hotline MPO',                          hc:22,vendor:'CNX',type:'RAMP',           ts:'2026-08-03',ns:'2026-08-31',ld:'2026-10-26',site:'Shaw'},
+    {name:'RAMP (SNR)',        lob:'Hotline SNR',                          hc:14,vendor:'CNX',type:'RAMP',           ts:'2026-08-03',ns:'2026-08-31',ld:'2026-09-28',site:'Shaw'},
+    {name:'RAMP (SNB)',        lob:'Hotline SNB',                          hc:16,vendor:'CNX',type:'RAMP',           ts:'2026-08-03',ns:'2026-08-31',ld:'2026-09-28',site:'Makati'},
+    {name:'SnS Prepaid BF',    lob:'SnS Prepaid',                          hc:12,vendor:'CNX',type:'Backfill',       ts:'2026-08-03',ns:'2026-08-31',ld:'2026-09-28',site:'Makati'},
+    {name:'RAMP 13 — SNR',    lob:'Hotline SNR',                          hc:15,vendor:'CNX',type:'RAMP / Backfill',ts:'2026-08-31',ns:'2026-09-28',ld:'2026-10-26',site:'Cebu'},
+    {name:'RAMP 13 — Postpaid',lob:'SnS Postpaid',                        hc:15,vendor:'CNX',type:'RAMP / Backfill',ts:'2026-09-07',ns:'2026-10-05',ld:'2026-11-02',site:'Cebu'},
+    {name:'RAMP 13 — SNB',    lob:'Hotline SNB',                          hc:15,vendor:'CNX',type:'RAMP / Backfill',ts:'2026-09-14',ns:'2026-10-12',ld:'2026-11-09',site:'Cebu'},
+    {name:'RAMP 13 — BB',     lob:'SnS Broadband',                        hc:15,vendor:'CNX',type:'RAMP / Backfill',ts:'2026-09-21',ns:'2026-10-19',ld:'2026-11-16',site:'Cebu'},
+    {name:'Backfill 12',       lob:'Hotline SNR',                          hc:15,vendor:'CNX',type:'Backfill',       ts:'2026-09-07',ns:'2026-10-05',ld:'2026-11-02',site:'Shaw'},
+    {name:'GFP Wave 3',        lob:'SnS GFP',                              hc:7, vendor:'CNX',type:'Backfill',       ts:'2026-10-05',ns:'2026-11-02',ld:'2026-11-30',site:'Makati'},
+    {name:'Backfill 14',       lob:'Hotline Stores / Hotline SNR',         hc:22,vendor:'CNX',type:'Backfill',       ts:'2026-11-09',ns:'2026-12-07',ld:'2027-01-04',site:'Shaw'},
+    {name:'Backfill 13A',      lob:'SnS Postpaid',                        hc:11,vendor:'CNX',type:'Backfill',       ts:'2026-11-16',ns:'2026-12-14',ld:'2027-01-11',site:'Cebu'},
+    {name:'Backfill 13B',      lob:'SnS Broadband',                       hc:11,vendor:'CNX',type:'Backfill',       ts:'2026-11-16',ns:'2026-12-14',ld:'2027-01-11',site:'Shaw'},
+    // TPS — already live / nesting
+    {name:'SNB/BB Batch 1',    lob:'Hotline SNB / SnS Broadband',         hc:10,vendor:'TPS',type:'RAMP',           ts:'2026-04-13',ns:'2026-05-11',ld:'2026-06-08',site:'Cebu'},
+    {name:'SNR Batch 1',       lob:'Hotline SNR',                         hc:23,vendor:'TPS',type:'RAMP',           ts:'2026-04-13',ns:'2026-05-11',ld:'2026-06-08',site:'Makati'},
+    {name:'SnS PrePaid B1',    lob:'SnS Prepaid',                         hc:21,vendor:'TPS',type:'RAMP',           ts:'2026-04-06',ns:'2026-05-04',ld:'2026-05-18',site:'Shaw'},
+    {name:'SnS PrePaid B2',    lob:'SnS Prepaid',                         hc:13,vendor:'TPS',type:'RAMP',           ts:'2026-05-18',ns:'2026-06-01',ld:'2026-06-15',site:'Shaw'},
+    {name:'SnS PrePaid B3',    lob:'SnS Prepaid',                         hc:10,vendor:'TPS',type:'Backfill',       ts:'2026-05-18',ns:'2026-06-01',ld:'2026-06-15',site:'Cebu'},
+    {name:'SnS Postpaid B1',   lob:'SnS Postpaid',                        hc:12,vendor:'TPS',type:'RAMP',           ts:'2026-05-18',ns:'2026-06-15',ld:'2026-07-13',site:'Shaw'},
+    {name:'SnS Postpaid B2',   lob:'SnS Postpaid',                        hc:18,vendor:'TPS',type:'RAMP',           ts:'2026-05-18',ns:'2026-06-15',ld:'2026-07-13',site:'Makati'},
+    {name:'SNB Batch 2',       lob:'Hotline SNB',                         hc:15,vendor:'TPS',type:'RAMP',           ts:'2026-05-18',ns:'2026-06-15',ld:'2026-07-13',site:'Makati'},
+    {name:'SnS Broadband B1',  lob:'SnS Broadband',                       hc:15,vendor:'TPS',type:'RAMP',           ts:'2026-05-18',ns:'2026-06-15',ld:'2026-07-13',site:'Shaw'},
+    {name:'SnS Broadband B2',  lob:'SnS Broadband',                       hc:29,vendor:'TPS',type:'RAMP',           ts:'2026-05-25',ns:'2026-06-22',ld:'2026-07-20',site:'Cebu'},
   ],
+  // ── hotlineLOBs: CNX LOBs first, then TPS LOBs (vendor property drives grouping) ──
   hotlineLOBs: {
-    'Stores':       {fte:[61,59,66,66,66,66,54],hc:[57,54,51,49,46,44,42]},
-    'Retention IB': {fte:[18,16,18,18,18,18,12],hc:[18,17,16,15,15,14,13]},
-    'SNR':          {fte:[19,28,31,31,34,35,30],hc:[22,22,31,29,17,29,39]},
-    'SNB':          {fte:[19,25,27,24,25,29,21],hc:[25,21,30,19,32,23,22]},
-    'NIAS':         {fte:[0,0,0,0,0,0,0],       hc:[0,0,0,0,0,0,0]},
+    'Stores':             {vendor:'CNX',fte:[61,59,66,66,66,66,54], hc:[57,54,51,49,46,44,42]},
+    'Retention IB':       {vendor:'CNX',fte:[18,16,18,18,18,18,12], hc:[18,17,16,15,15,14,13]},
+    'SNR':                {vendor:'CNX',fte:[19,28,31,31,34,35,30], hc:[22,22,31,29,17,29,39]},
+    'SNB':                {vendor:'CNX',fte:[19,25,27,24,25,29,21], hc:[25,21,30,19,32,23,22]},
+    'T6':                 {vendor:'CNX',fte:[21,20,20,22,26,24,22], hc:[18,20,19,18,17,19,18]},
+    'MPO':                {vendor:'CNX',fte:[0, 11,12,12,12,12,11], hc:[0, 11,10,10,10,10,10]},
+    'Wireless Renewal':   {vendor:'TPS',fte:[11,15,17,16,18,18,16], hc:[17,25,24,23,22,20,19]},
+    'SNB (TPS)':          {vendor:'TPS',fte:[20,18,19,17,18,20,15], hc:[18,23,22,21,20,19,18]},
+    'SNR (TPS)':          {vendor:'TPS',fte:[23,20,22,22,24,24,21], hc:[37,22,24,23,22,21,20]},
+    'MPO/SuperTenured':   {vendor:'TPS',fte:[9, 3, 3, 3, 3, 3, 3],  hc:[5, 5, 5, 4, 4, 4, 4]},
   },
+  // ── snsLOBs: CNX LOBs first, then TPS LOBs ──
   snsLOBs: {
-    'Retention Chat':   {fte:[20,11,12,12,12,13,11],hc:[7,7,10,10,9,13,12]},
-    'T6/PR Main':       {fte:[43,14,15,15,15,16,14],hc:[7,7,6,6,6,11,11]},
-    'Private Postpaid': {fte:[10,12,14,14,14,14,13],hc:[7,15,20,17,16,10,10]},
-    'Private Broadband':{fte:[16,18,25,19,24,18,16],hc:[7,19,28,31,30,20,19]},
-    'Private Prepaid':  {fte:[11,20,22,19,19,22,19],hc:[7,7,6,20,19,26,25]},
+    'Retention Chat':       {vendor:'CNX',fte:[20,11,12,12,12,13,11], hc:[7, 7, 10,10,9, 13,12]},
+    'T6/PR Main':           {vendor:'CNX',fte:[43,14,15,15,15,16,14], hc:[7, 7, 6, 6, 6, 11,11]},
+    'Private Postpaid':     {vendor:'CNX',fte:[10,12,14,14,14,14,13], hc:[7, 15,20,17,16,10,10]},
+    'Private Broadband':    {vendor:'CNX',fte:[16,18,25,19,24,18,16], hc:[7, 19,28,31,30,20,19]},
+    'Private Prepaid':      {vendor:'CNX',fte:[11,20,22,19,19,22,19], hc:[7, 7, 6, 20,19,26,25]},
+    'GFP':                  {vendor:'CNX',fte:[16,23,25,21,24,25,20], hc:[10,10,9, 9, 8, 15,14]},
+    'GOMO T1':              {vendor:'CNX',fte:[7, 7, 8, 7, 7, 8, 6],  hc:[17,16,15,15,14,13,12]},
+    'Postpaid (TPS)':       {vendor:'TPS',fte:[20,25,25,25,26,27,24], hc:[21,29,39,37,35,33,31]},
+    'Broadband (TPS)':      {vendor:'TPS',fte:[59,39,41,41,40,40,35], hc:[36,61,58,55,64,61,58]},
+    'Prepaid (TPS)':        {vendor:'TPS',fte:[55,46,50,43,44,52,43], hc:[52,60,51,49,46,44,42]},
+    'Viber (TPS)':          {vendor:'TPS',fte:[9, 7, 9, 8, 8, 10,7],  hc:[12,11,11,10,10,9, 9]},
+    'GFP (TPS)':            {vendor:'TPS',fte:[20,35,39,32,36,37,31], hc:[35,42,40,38,36,34,33]},
+    'GOMO T1 (TPS)':        {vendor:'TPS',fte:[11,12,14,13,12,13,11], hc:[19,18,17,16,15,15,14]},
   },
   customChannels: {},
   tpsTraining: {},
   cnxCapacity: null,
-  roster: [
-    {jr:'R1674467',tower:'GOMO',             batch:'GOMO Wave 2',      lob:'GFP/GOMO',          req:11,run:11,ts:'Apr 13',ld:'May 19',status:'Ongoing', site:'Makati'},
-    {jr:'R1713749',tower:'COEX CHAT',        batch:'COEX Wave 13',     lob:'COEX CHAT',          req:22,run:21,ts:'May 04',ld:'Jul 06',status:'Ongoing', site:'Cebu'},
-    {jr:'R1713752',tower:'COEX CHAT',        batch:'COEX Backfill 9',  lob:'COEX CHAT',          req:20,run:20,ts:'May 04',ld:'Jul 07',status:'Ongoing', site:'Makati'},
-    {jr:'R1721949',tower:'COEX CHAT/STORES', batch:'COEX Backfill 10', lob:'COEX CHAT/STORES',   req:15,run:0, ts:'Jul 06',ld:'Aug 31',status:'Upcoming',site:'Shaw'},
-    {jr:'',        tower:'COEX CHAT/STORES', batch:'COEX Backfill 11', lob:'COEX CHAT/STORES',   req:15,run:0, ts:'Jul 06',ld:'Aug 31',status:'Upcoming',site:'Shaw'},
-    {jr:'R1721950',tower:'WIRELINE UPSIZE',  batch:'Wireline Upsize',  lob:'WIRELINE',           req:12,run:0, ts:'Sep 07',ld:'Oct 26',status:'Upcoming',site:'Shaw'},
-    {jr:'R1721949',tower:'COEX UNIV BB',     batch:'COEX Backfill 12', lob:'COEX UNIVERSALIST',  req:15,run:0, ts:'Sep 07',ld:'Nov 02',status:'Upcoming',site:'Cebu'},
-    {jr:'',        tower:'COEX UNIV PP',     batch:'COEX Backfill 13', lob:'COEX UNIVERSALIST',  req:15,run:0, ts:'Sep 07',ld:'Nov 02',status:'Upcoming',site:'Makati'},
-    {jr:'',        tower:'WIRELINE T2',      batch:'BB Tech Wave 10',  lob:'WIRELINE TIER 2',    req:10,run:0, ts:'Oct 05',ld:'Nov 30',status:'Upcoming',site:'Makati'},
-    {jr:'R1674475',tower:'GOMO/GFP',         batch:'GOMO Wave 3',      lob:'GOMO/GFP',           req:7, run:0, ts:'Oct 05',ld:'Nov 16',status:'Upcoming',site:'Makati'},
-    {jr:'R1674471',tower:'COEX/STORES/UNIV', batch:'COEX Backfill 13', lob:'COEX CHAT/STORES/UNIV',req:22,run:0,ts:'Nov 09',ld:'Jan 04',status:'Upcoming',site:'Shaw'},
-  ]
+  roster: []
 };
 
 // ═══════════════════════════════════════════════════
@@ -576,7 +599,21 @@ function _hashStr(s){ let h=0; for(let i=0;i<s.length;i++) h=(Math.imul(31,h)+s.
 function loadData(){
   try{
     const saved=localStorage.getItem(DATA_KEY);
-    if(saved){ const d=JSON.parse(saved); if(!d.customChannels) d.customChannels={}; if(!d.tpsTraining) d.tpsTraining={}; if(d.cnxCapacity===undefined) d.cnxCapacity=null; return d; }
+    if(saved){
+      const d=JSON.parse(saved);
+      if(!d.customChannels) d.customChannels={};
+      if(!d.tpsTraining) d.tpsTraining={};
+      if(d.cnxCapacity===undefined) d.cnxCapacity=null;
+      // Migrate: add vendor property to LOBs that don't have it yet
+      const cnxHL=['Stores','Retention IB','SNR','SNB','T6','MPO','NIAS'];
+      const cnxSNS=['Retention Chat','T6/PR Main','Private Postpaid','Private Broadband','Private Prepaid','GFP','GOMO T1'];
+      Object.entries(d.hotlineLOBs||{}).forEach(([k,v])=>{ if(!v.vendor) v.vendor=cnxHL.includes(k)?'CNX':'TPS'; });
+      Object.entries(d.snsLOBs||{}).forEach(([k,v])=>{ if(!v.vendor) v.vendor=cnxSNS.includes(k)?'CNX':'TPS'; });
+      // Merge in any new TPS LOBs from DEFAULTS that may be missing
+      Object.entries(DEFAULTS.hotlineLOBs).forEach(([k,v])=>{ if(!d.hotlineLOBs[k]) d.hotlineLOBs[k]=JSON.parse(JSON.stringify(v)); });
+      Object.entries(DEFAULTS.snsLOBs).forEach(([k,v])=>{ if(!d.snsLOBs[k]) d.snsLOBs[k]=JSON.parse(JSON.stringify(v)); });
+      return d;
+    }
   }catch(e){}
   return JSON.parse(JSON.stringify(DEFAULTS));
 }
@@ -897,21 +934,38 @@ function renderOverview(){
     </div>`;
   }).join('')}</div>
 
-  <div class="sec-header"><div class="sec-title">Enterprise net over / (under) — by channel &amp; month</div></div>
+  <div class="sec-header"><div class="sec-title">Enterprise net over / (under) — by channel, vendor &amp; month</div></div>
   <div class="card">
     <div class="tbl-wrap">
       <table class="dash">
-        <thead><tr><th class="l" style="width:110px">Channel</th>${MONTHS.map(m=>`<th>${m}</th>`).join('')}<th>Total</th></tr></thead>
+        <thead><tr><th class="l" style="width:80px">Channel</th><th class="l" style="width:65px">Vendor</th>${MONTHS.map(m=>`<th>${m}</th>`).join('')}<th>Total</th></tr></thead>
         <tbody>
           ${['hotlineLOBs','snsLOBs'].map((key,ci)=>{
             const label=['Hotline','SnS'][ci];
-            const lobs=Object.values(D[key]);
-            const totals=MONTHS.map((_,i)=>lobs.reduce((s,l)=>s+ou(l.fte[i],l.hc[i]),0));
-            const total=totals.reduce((a,b)=>a+b,0);
-            return `<tr><td class="l" style="font-weight:600">${label}</td>${totals.map(v=>ouCell(v)).join('')}${ouCell(total)}</tr>`;
+            const allLobsInKey=Object.values(D[key]);
+            const cnxLobs=allLobsInKey.filter(l=>(l.vendor||'CNX')==='CNX');
+            const tpsLobs=allLobsInKey.filter(l=>l.vendor==='TPS');
+            const cnxTotals=MONTHS.map((_,i)=>cnxLobs.reduce((s,l)=>s+ou(l.fte[i],l.hc[i]),0));
+            const tpsTotals=MONTHS.map((_,i)=>tpsLobs.reduce((s,l)=>s+ou(l.fte[i],l.hc[i]),0));
+            const chTotals=MONTHS.map((_,i)=>cnxTotals[i]+tpsTotals[i]);
+            const chTotal=chTotals.reduce((a,b)=>a+b,0);
+            return `
+            <tr style="background:var(--gray-lt)">
+              <td class="l" style="font-weight:700;vertical-align:middle" rowspan="3">${label}</td>
+              <td class="l"><span style="display:inline-flex;align-items:center;gap:5px"><span style="width:7px;height:7px;border-radius:50%;background:#0369a1;display:inline-block"></span><span style="font-size:11px;font-weight:600;color:#0369a1">CNX</span></span></td>
+              ${cnxTotals.map(v=>ouCell(v)).join('')}${ouCell(cnxTotals.reduce((a,b)=>a+b,0))}
+            </tr>
+            <tr>
+              <td class="l"><span style="display:inline-flex;align-items:center;gap:5px"><span style="width:7px;height:7px;border-radius:50%;background:#6366f1;display:inline-block"></span><span style="font-size:11px;font-weight:600;color:#6366f1">TPS</span></span></td>
+              ${tpsTotals.map(v=>ouCell(v)).join('')}${ouCell(tpsTotals.reduce((a,b)=>a+b,0))}
+            </tr>
+            <tr style="border-bottom:2px solid var(--border)">
+              <td class="l" style="font-size:11px;color:var(--text-3);font-weight:600">Combined</td>
+              ${chTotals.map(v=>ouCell(v)).join('')}${ouCell(chTotal)}
+            </tr>`;
           }).join('')}
           <tr style="background:var(--gray-lt);border-top:2px solid var(--border)">
-            <td class="l" style="font-weight:700">Enterprise</td>
+            <td class="l" style="font-weight:700">Enterprise</td><td></td>
             ${netOU.map(v=>ouCell(v)).join('')}${ouCell(grand)}
           </tr>
         </tbody>
@@ -1218,7 +1272,7 @@ function renderCapacity(pageId){
   const isHotline=pageId==='hotline';
   const lobSet=isHotline?D.hotlineLOBs:D.snsLOBs;
   const title=isHotline?'Hotline Capacity':'SnS Capacity';
-  const sub=isHotline?'CNX · Voice channels · FTE Required vs Active HC':'CNX · Shop & Sales chat · FTE Required vs Active HC';
+  const sub=isHotline?'CNX + TPS · Voice channels · FTE Required vs Active HC · vendor-split view':'CNX + TPS · Shop & Sales chat · FTE Required vs Active HC · vendor-split view';
   const storeKey=isHotline?'hotlineLOBs':'snsLOBs';
 
   // For each LOB, compute projected HC including pipeline batches graduating each month
@@ -1233,101 +1287,120 @@ function renderCapacity(pageId){
     }).reduce((s,b)=>s+b.hc,0);
   }
 
-  const rows=Object.entries(lobSet).map(([name,d])=>{
-    const ouVals=MONTHS.map((_,i)=>ou(d.fte[i],d.hc[i]));
-    const ouTotal=ouVals.reduce((a,b)=>a+b,0);
-    const ouCls=ouTotal<0?'ou-neg':ouTotal>0?'ou-pos':'ou-zero';
+  // Group LOBs by vendor: CNX first, then TPS
+  function makeLOBRows(entries){
+    return entries.map(([name,d])=>{
+      const ouVals=MONTHS.map((_,i)=>ou(d.fte[i],d.hc[i]));
+      const ouTotal=ouVals.reduce((a,b)=>a+b,0);
+      const ouCls=ouTotal<0?'ou-neg':ouTotal>0?'ou-pos':'ou-zero';
+      const vdr=d.vendor||'CNX';
+      const vColor=vdr==='CNX'?'#0369a1':'#6366f1';
 
-    const fteCells=d.fte.map((v,i)=>editMode
-      ?`<td><input type="number" class="num-input" value="${v}" style="color:var(--text-2)" onchange="D['${storeKey}']['${name}'].fte[${i}]=+this.value;saveData()"></td>`
-      :`<td style="color:var(--text-2)">${v}</td>`).join('');
+      const fteCells=d.fte.map((v,i)=>editMode
+        ?`<td><input type="number" class="num-input" value="${v}" style="color:var(--text-2)" onchange="D['${storeKey}']['${name}'].fte[${i}]=+this.value;saveData()"></td>`
+        :`<td style="color:var(--text-2)">${v}</td>`).join('');
 
-    const hcCells=d.hc.map((v,i)=>editMode
-      ?`<td><input type="number" class="num-input" value="${v}" style="font-weight:600" onchange="D['${storeKey}']['${name}'].hc[${i}]=+this.value;saveData()"></td>`
-      :`<td><strong>${v}</strong></td>`).join('');
+      const hcCells=d.hc.map((v,i)=>editMode
+        ?`<td><input type="number" class="num-input" value="${v}" style="font-weight:600" onchange="D['${storeKey}']['${name}'].hc[${i}]=+this.value;saveData()"></td>`
+        :`<td><strong>${v}</strong></td>`).join('');
 
-    // TPS Training row: sum training HC for this channel+LOB from uploaded file
-    const tpsLobsForThis=Object.entries(D.tpsTraining||{}).filter(([k,v])=>{
-      if(v.channel!==pageId) return false;
-      const dWords=name.toLowerCase().split(/[\s\/]+/);
-      const tWords=k.toLowerCase().split(/[\s\/]+/);
-      return dWords.some(w=>w.length>2&&tWords.some(t=>t.includes(w)||w.includes(t)));
-    });
-    const tpsHC=tpsLobsForThis.length>0
-      ? MONTHS.map((_,i)=>tpsLobsForThis.reduce((s,[,v])=>s+(v.hc[i]||0),0))
-      : null;
+      // TPS Training row
+      const tpsLobsForThis=Object.entries(D.tpsTraining||{}).filter(([k,v])=>{
+        if(v.channel!==pageId) return false;
+        const dWords=name.toLowerCase().split(/[\s\/\(\)]+/);
+        const tWords=k.toLowerCase().split(/[\s\/]+/);
+        return dWords.some(w=>w.length>2&&tWords.some(t=>t.includes(w)||w.includes(t)));
+      });
+      const tpsHC=tpsLobsForThis.length>0
+        ? MONTHS.map((_,i)=>tpsLobsForThis.reduce((s,[,v])=>s+(v.hc[i]||0),0))
+        : null;
 
-    // CNX Training row: NH Training HC from Globe file (applies to all LOBs as combined)
-    const cnxHC=(D.cnxCapacity&&D.cnxCapacity.nhTraining&&D.cnxCapacity.nhTraining.some(v=>v>0))
-      ? D.cnxCapacity.nhTraining : null;
+      // CNX Training row
+      const cnxHC=(D.cnxCapacity&&D.cnxCapacity.nhTraining&&D.cnxCapacity.nhTraining.some(v=>v>0))
+        ? D.cnxCapacity.nhTraining : null;
 
-    // OCC Reco: per month, if deficit exists, recommend HC needed = abs(deficit) minus any pipeline batches already graduating that month
-    const recoCells=MONTHS.map((_,i)=>{
-      const deficit=ouVals[i]; // negative = under
-      if(deficit>=0) return `<td style="color:var(--text-3);font-size:11px">—</td>`;
-      const needed=Math.abs(deficit);
-      const pipeline=pipelineHCForLOB(name,i);
-      const gap=Math.max(0,needed-pipeline);
-      if(gap===0) return `<td style="color:var(--green);font-size:11px;font-weight:600">✓ Covered</td>`;
-      return `<td><span style="display:inline-block;background:var(--red-lt,#fef2f2);border:1px solid #fca5a5;border-radius:4px;padding:1px 6px;font-size:11px;font-weight:700;color:#dc2626">+${gap} HC</span></td>`;
+      // OCC Reco
+      const recoCells=MONTHS.map((_,i)=>{
+        const deficit=ouVals[i];
+        if(deficit>=0) return `<td style="color:var(--text-3);font-size:11px">—</td>`;
+        const needed=Math.abs(deficit);
+        const pipeline=pipelineHCForLOB(name,i);
+        const gap=Math.max(0,needed-pipeline);
+        if(gap===0) return `<td style="color:var(--green);font-size:11px;font-weight:600">✓ Covered</td>`;
+        return `<td><span style="display:inline-block;background:var(--red-lt,#fef2f2);border:1px solid #fca5a5;border-radius:4px;padding:1px 6px;font-size:11px;font-weight:700;color:#dc2626">+${gap} HC</span></td>`;
+      }).join('');
+      const recoTotal=MONTHS.reduce((s,_,i)=>{
+        const deficit=ouVals[i];
+        if(deficit>=0) return s;
+        return s+Math.max(0,Math.abs(deficit)-pipelineHCForLOB(name,i));
+      },0);
+      const recoTotalCell=recoTotal>0
+        ?`<td><span style="font-size:11px;font-weight:700;color:#dc2626">+${recoTotal} HC</span></td>`
+        :`<td style="color:var(--green);font-size:11px;font-weight:600">✓</td>`;
+
+      const safeName=name.replace(/'/g,"\\'");
+      const cnxRow=cnxHC?`
+      <tr class="cap-row-tps" style="background:#f0f9ff">
+        <td class="l cap-metric" style="color:#0369a1;font-weight:700;font-size:10px;text-transform:uppercase;letter-spacing:.04em">
+          <span style="display:inline-flex;align-items:center;gap:4px"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#0369a1" stroke-width="2.5"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>CNX Training</span>
+        </td>${cnxHC.map(v=>v>0?`<td><span style="display:inline-block;background:#e0f2fe;border:1px solid #7dd3fc;border-radius:4px;padding:2px 8px;font-size:12px;font-weight:700;color:#0369a1">${v}</span></td>`:`<td style="color:var(--text-3);font-size:11px">—</td>`).join('')}<td><span style="font-size:12px;font-weight:700;color:#0369a1">${cnxHC.reduce((a,b)=>a+b,0)}</span></td>
+      </tr>`:'';
+      const tpsRow=tpsHC?`
+      <tr class="cap-row-tps">
+        <td class="l cap-metric" style="color:#6366f1;font-weight:700;font-size:10px;text-transform:uppercase;letter-spacing:.04em">
+          <span style="display:inline-flex;align-items:center;gap:4px"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2.5"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>TPS Training</span>
+        </td>${tpsHC.map(v=>v>0?`<td><span style="display:inline-block;background:#ede9fe;border:1px solid #c4b5fd;border-radius:4px;padding:2px 8px;font-size:12px;font-weight:700;color:#6366f1">${v}</span></td>`:`<td style="color:var(--text-3);font-size:11px">—</td>`).join('')}<td><span style="font-size:12px;font-weight:700;color:#6366f1">${tpsHC.reduce((a,b)=>a+b,0)}</span></td>
+      </tr>`:'';
+      const rowspan=4+(tpsHC?1:0)+(cnxHC?1:0);
+      // Display name: strip "(TPS)" suffix for cleaner look since vendor is shown in section header
+      const displayName=name.replace(/\s*\(TPS\)\s*$/,'').replace(/^TPS\s+/,'');
+      return `
+      <tr class="cap-row-fte">
+        <td class="l" style="font-weight:600;background:#f8fafc" rowspan="${rowspan}">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:6px">
+            <span>${displayName}</span>
+            <button class="del-btn" style="font-size:10px;padding:1px 6px" onclick="deleteCapLOB('${storeKey}','${safeName}')">✕</button>
+          </div>
+        </td>
+        <td class="l cap-metric" style="color:var(--text-3);font-size:10px;text-transform:uppercase;letter-spacing:.04em">FTE Required</td>${fteCells}<td style="color:var(--text-2);font-size:12px">${d.fte.reduce((a,b)=>a+b,0)}</td>
+      </tr>
+      <tr class="cap-row-hc">
+        <td class="l cap-metric" style="color:${vColor};font-size:10px;text-transform:uppercase;letter-spacing:.04em;font-weight:600">Active HC</td>${hcCells}<td><strong style="color:${vColor}">${d.hc.reduce((a,b)=>a+b,0)}</strong></td>
+      </tr>
+      <tr class="cap-row-ou">
+        <td class="l cap-metric" style="color:var(--text-3);font-size:10px;text-transform:uppercase;letter-spacing:.04em">Over / (Under)</td>${ouVals.map(v=>ouCell(v)).join('')}<td><span class="${ouCls}">${ouTotal>0?'+':''}${ouTotal}</span></td>
+      </tr>
+      ${cnxRow}${tpsRow}
+      <tr class="cap-row-reco" style="border-bottom:2px solid var(--border)">
+        <td class="l cap-metric" style="color:#dc2626;font-weight:700;font-size:10px;text-transform:uppercase;letter-spacing:.04em">
+          <span style="display:inline-flex;align-items:center;gap:4px"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2.5"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>OCC Reco</span>
+        </td>${recoCells}${recoTotalCell}
+      </tr>`;
     }).join('');
-    const recoTotal=MONTHS.reduce((s,_,i)=>{
-      const deficit=ouVals[i];
-      if(deficit>=0) return s;
-      const pipeline=pipelineHCForLOB(name,i);
-      return s+Math.max(0,Math.abs(deficit)-pipeline);
-    },0);
-    const recoTotalCell=recoTotal>0
-      ?`<td><span style="font-size:11px;font-weight:700;color:#dc2626">+${recoTotal} HC</span></td>`
-      :`<td style="color:var(--green);font-size:11px;font-weight:600">✓</td>`;
+  }
 
-    const safeName=name.replace(/'/g,"\\'");
-    const cnxRow=cnxHC?`
-    <tr class="cap-row-tps" style="background:#f0f9ff">
-      <td class="l cap-metric" style="color:#0369a1;font-weight:700;font-size:10px;text-transform:uppercase;letter-spacing:.04em">
-        <span style="display:inline-flex;align-items:center;gap:4px">
-          <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#0369a1" stroke-width="2.5"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-          CNX Training
-        </span>
-      </td>${cnxHC.map(v=>v>0?`<td><span style="display:inline-block;background:#e0f2fe;border:1px solid #7dd3fc;border-radius:4px;padding:2px 8px;font-size:12px;font-weight:700;color:#0369a1">${v}</span></td>`:`<td style="color:var(--text-3);font-size:11px">—</td>`).join('')}<td><span style="font-size:12px;font-weight:700;color:#0369a1">${cnxHC.reduce((a,b)=>a+b,0)}</span></td>
-    </tr>`:'';
-    const rowspan=4+(tpsHC?1:0)+(cnxHC?1:0);
-    const tpsRow=tpsHC?`
-    <tr class="cap-row-tps">
-      <td class="l cap-metric" style="color:#6366f1;font-weight:700;font-size:10px;text-transform:uppercase;letter-spacing:.04em">
-        <span style="display:inline-flex;align-items:center;gap:4px">
-          <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2.5"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-          TPS Training
-        </span>
-      </td>${tpsHC.map(v=>v>0?`<td><span style="display:inline-block;background:#ede9fe;border:1px solid #c4b5fd;border-radius:4px;padding:2px 8px;font-size:12px;font-weight:700;color:#6366f1">${v}</span></td>`:`<td style="color:var(--text-3);font-size:11px">—</td>`).join('')}<td><span style="font-size:12px;font-weight:700;color:#6366f1">${tpsHC.reduce((a,b)=>a+b,0)}</span></td>
-    </tr>`:'';
-    return `
-    <tr class="cap-row-fte">
-      <td class="l" style="font-weight:600;background:#f8fafc" rowspan="${rowspan}">
-        <div style="display:flex;align-items:center;gap:6px">
-          <span>${name}</span>
-          <button class="del-btn" style="font-size:10px;padding:1px 6px" onclick="deleteCapLOB('${storeKey}','${safeName}')">✕</button>
-        </div>
-      </td>
-      <td class="l cap-metric" style="color:var(--text-3);font-size:10px;text-transform:uppercase;letter-spacing:.04em">FTE Required</td>${fteCells}<td style="color:var(--text-2);font-size:12px">${d.fte.reduce((a,b)=>a+b,0)}</td>
-    </tr>
-    <tr class="cap-row-hc">
-      <td class="l cap-metric" style="color:#1a56db;font-size:10px;text-transform:uppercase;letter-spacing:.04em;font-weight:600">Active HC</td>${hcCells}<td><strong>${d.hc.reduce((a,b)=>a+b,0)}</strong></td>
-    </tr>
-    <tr class="cap-row-ou">
-      <td class="l cap-metric" style="color:var(--text-3);font-size:10px;text-transform:uppercase;letter-spacing:.04em">Over / (Under)</td>${ouVals.map(v=>ouCell(v)).join('')}<td><span class="${ouCls}">${ouTotal>0?'+':''}${ouTotal}</span></td>
-    </tr>
-    ${cnxRow}
-    ${tpsRow}
-    <tr class="cap-row-reco" style="border-bottom:2px solid var(--border)">
-      <td class="l cap-metric" style="color:#dc2626;font-weight:700;font-size:10px;text-transform:uppercase;letter-spacing:.04em">
-        <span style="display:inline-flex;align-items:center;gap:4px">
-          <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2.5"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-          OCC Reco
-        </span>
-      </td>${recoCells}${recoTotalCell}
-    </tr>`;
-  }).join('');
+  // Build rows grouped by vendor with section headers
+  const allEntries=Object.entries(lobSet);
+  const cnxEntries=allEntries.filter(([,d])=>(d.vendor||'CNX')==='CNX');
+  const tpsEntries=allEntries.filter(([,d])=>d.vendor==='TPS');
+
+  function vendorSectionHdr(vendor){
+    const color=vendor==='CNX'?'#0369a1':'#6366f1';
+    const bg=vendor==='CNX'?'#f0f9ff':'#f5f3ff';
+    const bd=vendor==='CNX'?'#bae6fd':'#ddd6fe';
+    const label=vendor==='CNX'?'CNX — Concentrix':'TPS — Teleperformance';
+    const cols=MONTHS.length+3; // LOB + Metric + months + Total
+    return `<tr><td colspan="${cols}" style="background:${bg};border-top:2px solid ${bd};border-bottom:1px solid ${bd};padding:7px 14px">
+      <span style="display:inline-flex;align-items:center;gap:8px">
+        <span style="width:10px;height:10px;border-radius:50%;background:${color};display:inline-block"></span>
+        <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:${color}">${label}</span>
+        <span style="font-size:11px;color:${color};opacity:.7">${vendor==='CNX'?cnxEntries.length:tpsEntries.length} LOB${(vendor==='CNX'?cnxEntries.length:tpsEntries.length)!==1?'s':''}</span>
+      </span>
+    </td></tr>`;
+  }
+
+  const rows=(cnxEntries.length?vendorSectionHdr('CNX')+makeLOBRows(cnxEntries):'')
+           +(tpsEntries.length?vendorSectionHdr('TPS')+makeLOBRows(tpsEntries):'');
 
   document.getElementById(pageId).innerHTML=`
   <div class="page-header">
