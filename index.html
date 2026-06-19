@@ -1336,8 +1336,8 @@ function renderCapacity(pageId){
         const needed=Math.abs(deficit);
         const pipeline=pipelineHCForLOB(name,i);
         const gap=Math.max(0,needed-pipeline);
-        if(gap===0) return `<td style="color:var(--green);font-size:11px;font-weight:600">✓ Covered</td>`;
-        return `<td><span style="display:inline-block;background:var(--red-lt,#fef2f2);border:1px solid #fca5a5;border-radius:4px;padding:1px 6px;font-size:11px;font-weight:700;color:#dc2626">+${gap} HC</span></td>`;
+        if(gap===0) return `<td style="color:var(--text-3);font-size:11px">—</td>`;
+        return `<td><span style="font-size:11px;font-weight:700;color:#b91c1c">+${gap} HC</span></td>`;
       }).join('');
       const recoTotal=MONTHS.reduce((s,_,i)=>{
         const deficit=ouVals[i];
@@ -1345,8 +1345,8 @@ function renderCapacity(pageId){
         return s+Math.max(0,Math.abs(deficit)-pipelineHCForLOB(name,i));
       },0);
       const recoTotalCell=recoTotal>0
-        ?`<td><span style="font-size:11px;font-weight:700;color:#dc2626">+${recoTotal} HC</span></td>`
-        :`<td style="color:var(--green);font-size:11px;font-weight:600">✓</td>`;
+        ?`<td><span style="font-size:11px;font-weight:700;color:#b91c1c">+${recoTotal} HC</span></td>`
+        :`<td style="color:var(--text-3);font-size:11px">—</td>`;
 
       const safeName=name.replace(/'/g,"\\'");
       const cnxRow=cnxHC?`
@@ -1601,7 +1601,7 @@ function renderCustomCapacity(ch){
     </tr>
     <tr><td class="l cap-metric">Active HC</td>${hcCells}<td><strong>${d.hc.reduce((a,b)=>a+b,0)}</strong></td></tr>
     <tr style="border-bottom:2px solid var(--border)">
-      <td class="l cap-metric">Over / (Under)</td>${ouVals.map(v=>ouCell(v)).join('')}<td><span class="${ouCls}">${ouTotal>0?'+':''}${ouTotal}</span></td>
+      <td class="l cap-metric">Over / (Under)</td>${ouVals.map(v=>ouCell(v)).join('')}<td>${ouCell(ouTotal)}</td>
     </tr>`;
   }).join('');
 
