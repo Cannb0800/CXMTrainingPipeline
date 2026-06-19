@@ -108,9 +108,18 @@ table.dash tbody tr:hover{background:var(--gray-lt)}
 .chip.nest{background:var(--blue-lt);color:var(--blue);border:1px solid var(--blue-bd)}
 .chip.train{background:var(--amber-lt);color:var(--amber);border:1px solid var(--amber-bd)}
 .chip.upcoming{background:var(--gray-lt);color:var(--gray);border:1px solid var(--gray-bd)}
-.ou-neg{display:inline-block;background:var(--red-lt);color:var(--red);font-weight:600;border-radius:5px;padding:1px 7px}
-.ou-pos{display:inline-block;background:var(--green-lt);color:var(--green);font-weight:600;border-radius:5px;padding:1px 7px}
-.ou-zero{color:var(--text-3)}
+.ou-neg{display:inline-block;background:#fff1f2;color:#be123c;font-weight:700;border-radius:4px;padding:2px 8px;font-size:12px;border:1px solid #fecdd3}
+.ou-pos{display:inline-block;background:#f0fdf4;color:#15803d;font-weight:700;border-radius:4px;padding:2px 8px;font-size:12px;border:1px solid #bbf7d0}
+.ou-zero{color:var(--text-3);font-size:12px}
+.cap-row-fte td{background:#f8fafc;color:var(--text-2);font-size:12px}
+.cap-row-hc td{background:#fff;font-size:13px}
+.cap-row-ou td{background:#fafafa}
+.cap-row-tps td{background:#f5f3ff}
+.cap-row-reco td{background:#fff8f8}
+.vendor-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:18px 20px;flex:1;min-width:200px}
+.vendor-card-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-3);margin-bottom:12px}
+.vendor-stat{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--border)}
+.vendor-stat:last-child{border-bottom:none}
 
 /* BATCH CARDS */
 .batch-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);margin-bottom:10px;overflow:hidden}
@@ -857,11 +866,41 @@ function renderOverview(){
     </div>
   </div>
 
-  <div class="sec-header"><div class="sec-title">Enterprise net over / (under) — monthly</div></div>
+  <div class="sec-header"><div class="sec-title">Vendor partner breakdown</div></div>
+  <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:24px">${['CNX','TPS'].map(vendor=>{
+    const vb=D.batches.filter(b=>b.vendor===vendor);
+    const vLive=vb.filter(b=>currPhase(b)==='live');
+    const vNest=vb.filter(b=>currPhase(b)==='nest');
+    const vTrain=vb.filter(b=>currPhase(b)==='train');
+    const vUp=vb.filter(b=>currPhase(b)==='none');
+    const color=vendor==='CNX'?'#0369a1':'#6366f1';
+    const bgColor=vendor==='CNX'?'#f0f9ff':'#f5f3ff';
+    const bdColor=vendor==='CNX'?'#bae6fd':'#ddd6fe';
+    const totalHC=vb.reduce((s,b)=>s+b.hc,0);
+    const monthlyVLive=MONTHS.map((_,mi)=>{
+      const ms=new Date(2026,5+mi,1),me=new Date(2026,5+mi+1,1);
+      return vb.filter(b=>{const l=pd(b.ld);return l>=ms&&l<me;}).reduce((s,b)=>s+b.hc,0);
+    });
+    return `<div class="vendor-card" style="border-color:${bdColor}">
+      <div class="vendor-card-title" style="color:${color}">${vendor==='CNX'?'CNX (Concentrix)':'TPS (Teleperformance)'}</div>
+      <div style="font-size:28px;font-weight:800;color:${color};margin-bottom:4px">${totalHC} <span style="font-size:13px;font-weight:500;color:var(--text-3)">total HC</span></div>
+      <div style="font-size:11px;color:var(--text-3);margin-bottom:14px">${vb.length} class${vb.length!==1?'es':''}</div>
+      <div class="vendor-stat"><span style="font-size:12px;color:var(--text-2)">Live on floor</span><span style="font-size:13px;font-weight:700;color:#15803d">${vLive.reduce((s,b)=>s+b.hc,0)} HC</span></div>
+      <div class="vendor-stat"><span style="font-size:12px;color:var(--text-2)">Nesting</span><span style="font-size:13px;font-weight:700;color:#1a56db">${vNest.reduce((s,b)=>s+b.hc,0)} HC</span></div>
+      <div class="vendor-stat"><span style="font-size:12px;color:var(--text-2)">In training</span><span style="font-size:13px;font-weight:700;color:#b45309">${vTrain.reduce((s,b)=>s+b.hc,0)} HC</span></div>
+      <div class="vendor-stat"><span style="font-size:12px;color:var(--text-2)">Upcoming</span><span style="font-size:13px;font-weight:700;color:var(--text-3)">${vUp.reduce((s,b)=>s+b.hc,0)} HC</span></div>
+      <div style="margin-top:12px;padding-top:10px;border-top:1px solid ${bdColor}">
+        <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:${color};margin-bottom:6px">Graduating live by month</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">${MONTHS.map((m,i)=>monthlyVLive[i]>0?`<span style="font-size:11px;background:${bgColor};border:1px solid ${bdColor};border-radius:4px;padding:2px 7px;color:${color};font-weight:600">${m} <strong>${monthlyVLive[i]}</strong></span>`:'').filter(Boolean).join('')||`<span style="font-size:11px;color:var(--text-3)">None scheduled</span>`}</div>
+      </div>
+    </div>`;
+  }).join('')}</div>
+
+  <div class="sec-header"><div class="sec-title">Enterprise net over / (under) — by channel &amp; month</div></div>
   <div class="card">
     <div class="tbl-wrap">
       <table class="dash">
-        <thead><tr><th class="l">Channel</th>${MONTHS.map(m=>`<th>${m}</th>`).join('')}<th>Total</th></tr></thead>
+        <thead><tr><th class="l" style="width:110px">Channel</th>${MONTHS.map(m=>`<th>${m}</th>`).join('')}<th>Total</th></tr></thead>
         <tbody>
           ${['hotlineLOBs','snsLOBs'].map((key,ci)=>{
             const label=['Hotline','SnS'][ci];
@@ -870,10 +909,35 @@ function renderOverview(){
             const total=totals.reduce((a,b)=>a+b,0);
             return `<tr><td class="l" style="font-weight:600">${label}</td>${totals.map(v=>ouCell(v)).join('')}${ouCell(total)}</tr>`;
           }).join('')}
-          <tr style="background:var(--gray-lt)">
-            <td class="l" style="font-weight:700">Enterprise total</td>
+          <tr style="background:var(--gray-lt);border-top:2px solid var(--border)">
+            <td class="l" style="font-weight:700">Enterprise</td>
             ${netOU.map(v=>ouCell(v)).join('')}${ouCell(grand)}
           </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="sec-header"><div class="sec-title">Vendor pipeline — HC in training &amp; nesting by month</div></div>
+  <div class="card">
+    <div class="tbl-wrap">
+      <table class="dash">
+        <thead><tr><th class="l" style="width:110px">Vendor</th>${MONTHS.map(m=>`<th>${m}</th>`).join('')}<th>Total</th></tr></thead>
+        <tbody>
+          ${['CNX','TPS'].map(vendor=>{
+            const color=vendor==='CNX'?'#0369a1':'#6366f1';
+            const vb=D.batches.filter(b=>b.vendor===vendor);
+            const mVals=MONTHS.map((_,mi)=>{
+              const ms=new Date(2026,5+mi,1),me=new Date(2026,5+mi+1,1);
+              return vb.filter(b=>{const l=pd(b.ld);return l>=ms&&l<me;}).reduce((s,b)=>s+b.hc,0);
+            });
+            const tot=mVals.reduce((a,b)=>a+b,0);
+            return `<tr>
+              <td class="l"><span style="display:inline-flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border-radius:50%;background:${color};display:inline-block"></span><strong>${vendor}</strong></span></td>
+              ${mVals.map(v=>v>0?`<td><span style="display:inline-block;background:${vendor==='CNX'?'#f0f9ff':'#f5f3ff'};border:1px solid ${vendor==='CNX'?'#bae6fd':'#ddd6fe'};border-radius:4px;padding:2px 7px;font-weight:700;font-size:12px;color:${color}">${v}</span></td>`:`<td style="color:var(--text-3);font-size:11px">—</td>`).join('')}
+              <td><strong style="color:${color}">${tot}</strong></td>
+            </tr>`;
+          }).join('')}
         </tbody>
       </table>
     </div>
@@ -1216,36 +1280,36 @@ function renderCapacity(pageId){
     const safeName=name.replace(/'/g,"\\'");
     const rowspan=tpsHC?5:4;
     const tpsRow=tpsHC?`
-    <tr style="background:rgba(99,102,241,0.04)">
-      <td class="l cap-metric" style="color:#6366f1;font-weight:600;font-size:11px">
+    <tr class="cap-row-tps">
+      <td class="l cap-metric" style="color:#6366f1;font-weight:700;font-size:10px;text-transform:uppercase;letter-spacing:.04em">
         <span style="display:inline-flex;align-items:center;gap:4px">
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2.5"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+          <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2.5"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
           TPS Training
         </span>
-      </td>${tpsHC.map(v=>v>0?`<td><span style="display:inline-block;background:#eef2ff;border:1px solid #c7d2fe;border-radius:4px;padding:1px 6px;font-size:11px;font-weight:700;color:#6366f1">${v}</span></td>`:`<td style="color:var(--text-3);font-size:11px">—</td>`).join('')}<td><span style="font-size:11px;font-weight:700;color:#6366f1">${tpsHC.reduce((a,b)=>a+b,0)}</span></td>
+      </td>${tpsHC.map(v=>v>0?`<td><span style="display:inline-block;background:#ede9fe;border:1px solid #c4b5fd;border-radius:4px;padding:2px 8px;font-size:12px;font-weight:700;color:#6366f1">${v}</span></td>`:`<td style="color:var(--text-3);font-size:11px">—</td>`).join('')}<td><span style="font-size:12px;font-weight:700;color:#6366f1">${tpsHC.reduce((a,b)=>a+b,0)}</span></td>
     </tr>`:'';
     return `
-    <tr>
-      <td class="l" style="font-weight:600" rowspan="${rowspan}">
+    <tr class="cap-row-fte">
+      <td class="l" style="font-weight:600;background:#f8fafc" rowspan="${rowspan}">
         <div style="display:flex;align-items:center;gap:6px">
           <span>${name}</span>
           <button class="del-btn" style="font-size:10px;padding:1px 6px" onclick="deleteCapLOB('${storeKey}','${safeName}')">✕</button>
         </div>
       </td>
-      <td class="l cap-metric">FTE Required</td>${fteCells}<td style="color:var(--text-2)">${d.fte.reduce((a,b)=>a+b,0)}</td>
+      <td class="l cap-metric" style="color:var(--text-3);font-size:10px;text-transform:uppercase;letter-spacing:.04em">FTE Required</td>${fteCells}<td style="color:var(--text-2);font-size:12px">${d.fte.reduce((a,b)=>a+b,0)}</td>
     </tr>
-    <tr>
-      <td class="l cap-metric">Active HC</td>${hcCells}<td><strong>${d.hc.reduce((a,b)=>a+b,0)}</strong></td>
+    <tr class="cap-row-hc">
+      <td class="l cap-metric" style="color:#1a56db;font-size:10px;text-transform:uppercase;letter-spacing:.04em;font-weight:600">Active HC</td>${hcCells}<td><strong>${d.hc.reduce((a,b)=>a+b,0)}</strong></td>
     </tr>
-    <tr>
-      <td class="l cap-metric">Over / (Under)</td>${ouVals.map(v=>ouCell(v)).join('')}<td><span class="${ouCls}">${ouTotal>0?'+':''}${ouTotal}</span></td>
+    <tr class="cap-row-ou">
+      <td class="l cap-metric" style="color:var(--text-3);font-size:10px;text-transform:uppercase;letter-spacing:.04em">Over / (Under)</td>${ouVals.map(v=>ouCell(v)).join('')}<td><span class="${ouCls}">${ouTotal>0?'+':''}${ouTotal}</span></td>
     </tr>
     ${tpsRow}
-    <tr style="border-bottom:2px solid var(--border);background:rgba(239,68,68,0.03)">
-      <td class="l cap-metric" style="color:#dc2626;font-weight:600;font-size:11px">
+    <tr class="cap-row-reco" style="border-bottom:2px solid var(--border)">
+      <td class="l cap-metric" style="color:#dc2626;font-weight:700;font-size:10px;text-transform:uppercase;letter-spacing:.04em">
         <span style="display:inline-flex;align-items:center;gap:4px">
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2.5"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-          OCC Reco class
+          <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2.5"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          OCC Reco
         </span>
       </td>${recoCells}${recoTotalCell}
     </tr>`;
