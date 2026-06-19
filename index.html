@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Globe OCC CXM Training Pipeline</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <style>
@@ -533,6 +534,7 @@ const DEFAULTS = {
     'Private Prepaid':  {fte:[11,20,22,19,19,22,19],hc:[7,7,6,20,19,26,25]},
   },
   customChannels: {},
+  tpsTraining: {},
   roster: [
     {jr:'R1674467',tower:'GOMO',             batch:'GOMO Wave 2',      lob:'GFP/GOMO',          req:11,run:11,ts:'Apr 13',ld:'May 19',status:'Ongoing', site:'Makati'},
     {jr:'R1713749',tower:'COEX CHAT',        batch:'COEX Wave 13',     lob:'COEX CHAT',          req:22,run:21,ts:'May 04',ld:'Jul 06',status:'Ongoing', site:'Cebu'},
@@ -564,7 +566,7 @@ function _hashStr(s){ let h=0; for(let i=0;i<s.length;i++) h=(Math.imul(31,h)+s.
 function loadData(){
   try{
     const saved=localStorage.getItem(DATA_KEY);
-    if(saved){ const d=JSON.parse(saved); if(!d.customChannels) d.customChannels={}; return d; }
+    if(saved){ const d=JSON.parse(saved); if(!d.customChannels) d.customChannels={}; if(!d.tpsTraining) d.tpsTraining={}; return d; }
   }catch(e){}
   return JSON.parse(JSON.stringify(DEFAULTS));
 }
@@ -591,7 +593,7 @@ function resetData(){
 
 function _applyRemote(data){
   if(!data) return;
-  data.customChannels=data.customChannels||{};
+  data.customChannels=data.customChannels||{}; data.tpsTraining=data.tpsTraining||{};
   D=data;
   localStorage.setItem(DATA_KEY,JSON.stringify(D));
   renderCurrent(); renderSidebarCustomChannels();
@@ -1179,6 +1181,18 @@ function renderCapacity(pageId){
       ?`<td><input type="number" class="num-input" value="${v}" style="font-weight:600" onchange="D['${storeKey}']['${name}'].hc[${i}]=+this.value;saveData()"></td>`
       :`<td><strong>${v}</strong></td>`).join('');
 
+    // TPS Training row: sum training HC for this channel+LOB from uploaded file
+    const tpsLobsForThis=Object.entries(D.tpsTraining||{}).filter(([k,v])=>{
+      if(v.channel!==pageId) return false;
+      // loose match: TPS LOB name contains dashboard LOB name words or vice versa
+      const dWords=name.toLowerCase().split(/[\s\/]+/);
+      const tWords=k.toLowerCase().split(/[\s\/]+/);
+      return dWords.some(w=>w.length>2&&tWords.some(t=>t.includes(w)||w.includes(t)));
+    });
+    const tpsHC=tpsLobsForThis.length>0
+      ? MONTHS.map((_,i)=>tpsLobsForThis.reduce((s,[,v])=>s+(v.hc[i]||0),0))
+      : null;
+
     // OCC Reco: per month, if deficit exists, recommend HC needed = abs(deficit) minus any pipeline batches already graduating that month
     const recoCells=MONTHS.map((_,i)=>{
       const deficit=ouVals[i]; // negative = under
@@ -1200,9 +1214,19 @@ function renderCapacity(pageId){
       :`<td style="color:var(--green);font-size:11px;font-weight:600">✓</td>`;
 
     const safeName=name.replace(/'/g,"\\'");
+    const rowspan=tpsHC?5:4;
+    const tpsRow=tpsHC?`
+    <tr style="background:rgba(99,102,241,0.04)">
+      <td class="l cap-metric" style="color:#6366f1;font-weight:600;font-size:11px">
+        <span style="display:inline-flex;align-items:center;gap:4px">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2.5"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+          TPS Training
+        </span>
+      </td>${tpsHC.map(v=>v>0?`<td><span style="display:inline-block;background:#eef2ff;border:1px solid #c7d2fe;border-radius:4px;padding:1px 6px;font-size:11px;font-weight:700;color:#6366f1">${v}</span></td>`:`<td style="color:var(--text-3);font-size:11px">—</td>`).join('')}<td><span style="font-size:11px;font-weight:700;color:#6366f1">${tpsHC.reduce((a,b)=>a+b,0)}</span></td>
+    </tr>`:'';
     return `
     <tr>
-      <td class="l" style="font-weight:600" rowspan="4">
+      <td class="l" style="font-weight:600" rowspan="${rowspan}">
         <div style="display:flex;align-items:center;gap:6px">
           <span>${name}</span>
           <button class="del-btn" style="font-size:10px;padding:1px 6px" onclick="deleteCapLOB('${storeKey}','${safeName}')">✕</button>
@@ -1216,6 +1240,7 @@ function renderCapacity(pageId){
     <tr>
       <td class="l cap-metric">Over / (Under)</td>${ouVals.map(v=>ouCell(v)).join('')}<td><span class="${ouCls}">${ouTotal>0?'+':''}${ouTotal}</span></td>
     </tr>
+    ${tpsRow}
     <tr style="border-bottom:2px solid var(--border);background:rgba(239,68,68,0.03)">
       <td class="l cap-metric" style="color:#dc2626;font-weight:600;font-size:11px">
         <span style="display:inline-flex;align-items:center;gap:4px">
@@ -1229,7 +1254,12 @@ function renderCapacity(pageId){
   document.getElementById(pageId).innerHTML=`
   <div class="page-header">
     <div class="page-header-text"><h2>${title}</h2><p>${sub} · Jun–Dec 2026</p></div>
-    <div style="display:flex;gap:8px;align-items:center;flex-shrink:0">
+    <div style="display:flex;gap:8px;align-items:center;flex-shrink:0;flex-wrap:wrap">
+      <button class="btn-ghost" style="display:flex;align-items:center;gap:6px;font-size:12px;padding:7px 14px;color:#6366f1;border-color:#c7d2fe" onclick="openTpsUpload()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        ${Object.keys(D.tpsTraining||{}).length>0?'Update TPS file':'Upload TPS file'}
+      </button>
+      ${Object.keys(D.tpsTraining||{}).length>0?`<button class="del-btn" style="font-size:11px" onclick="clearTpsData()">✕ Clear TPS</button>`:''}
       <button class="btn-primary" style="display:flex;align-items:center;gap:6px;font-size:12px;padding:7px 14px" onclick="openCapModal('${storeKey}')">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         Add LOB
@@ -1237,6 +1267,7 @@ function renderCapacity(pageId){
       ${editBtn(pageId)}
     </div>
   </div>
+  <input type="file" id="tpsUploadInput" accept=".xlsx,.xls" style="display:none" onchange="handleTpsFile(this)">
   <div class="edit-notice"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> Edit mode on — click any FTE Required or Active HC value to update. Over/(Under) recalculates automatically.</div>
   <div style="background:var(--amber-lt);border:1px solid var(--amber-bd);border-radius:var(--r-sm);padding:10px 14px;font-size:12px;color:var(--amber);margin-bottom:20px">
     Row 1 = FTE Required (target) &nbsp;·&nbsp; Row 2 = Active HC (projected) &nbsp;·&nbsp; Row 3 = Over/(Under) — auto-calculated
@@ -1592,6 +1623,104 @@ function deleteCapLOB(storeKey,name){
   delete D[storeKey][name];
   saveData();
   renderCapacity(storeKey==='hotlineLOBs'?'hotline':'sns');
+}
+
+// ═══════════════════════════════════════════════════
+// TPS CAPACITY FILE PARSER
+// ═══════════════════════════════════════════════════
+// Maps TPS LOB names (from Excel col 0) to channel: 'hotline' or 'sns'
+const TPS_LOB_CHANNEL = {
+  'sns broadband':'sns','sns prepaid':'sns','sns postpaid':'sns',
+  'sns viber':'sns','sns gfp':'sns','sns gomo':'sns',
+  'renewal hotline':'hotline','wireline ftm':'hotline','wireline sf':'hotline',
+  'senior & bayan wireline':'hotline','senior & roaming wireless':'hotline',
+  'he wireline':'hotline','wireless ftc':'hotline','mpo':'hotline',
+  'nia postpaid':'hotline','nia prepaid':'hotline',
+  'thea&vip':'hotline','service recovery thea':'hotline',
+  'gfp/gomo t2':'sns','buffer class':'other',
+};
+
+function tpsLobChannel(name){
+  const k=name.trim().toLowerCase();
+  for(const [pat,ch] of Object.entries(TPS_LOB_CHANNEL)){
+    if(k===pat||k.includes(pat)||pat.includes(k)) return ch;
+  }
+  if(k.includes('sns')||k.includes('shop')) return 'sns';
+  if(k.includes('hotline')||k.includes('wireline')||k.includes('wireless')||k.includes('renewal')) return 'hotline';
+  return 'other';
+}
+
+function openTpsUpload(){ document.getElementById('tpsUploadInput').click(); }
+
+function handleTpsFile(input){
+  const file=input.files[0]; if(!file) return;
+  const reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      const wb=XLSX.read(e.target.result,{type:'array',cellDates:true});
+      // Find CXP sheet (main sheet with all LOB data)
+      const sheetName=wb.SheetNames.find(s=>s.trim()==='CXP')||wb.SheetNames[0];
+      const ws=wb.Sheets[sheetName];
+      const raw=XLSX.utils.sheet_to_json(ws,{header:1,raw:false,dateNF:'yyyy-mm-dd'});
+
+      // Find row with 2026 month dates to get column indices for Jun-Dec
+      // Dashboard months: Jun=0…Dec=6
+      const dashMonths=['Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      let monthCols={}; // { 'Jun': colIdx, ... }
+      for(let r=0;r<20;r++){
+        const row=raw[r]||[];
+        for(let c=0;c<row.length;c++){
+          const v=String(row[c]||'');
+          for(const [mi,m] of Object.entries({5:'Jun',6:'Jul',7:'Aug',8:'Sep',9:'Oct',10:'Nov',11:'Dec'})){
+            if(v.startsWith('2026-'+mi.padStart(2,'0'))) monthCols[m]=c;
+          }
+        }
+        if(Object.keys(monthCols).length>=7) break;
+      }
+
+      if(Object.keys(monthCols).length===0){
+        alert('Could not find 2026 month columns in this file. Make sure you are uploading the Teleperformance Capacity Plan xlsx.');
+        return;
+      }
+
+      // Extract training rows: col4 contains 'Training' or 'Ongoing Training', col0 has LOB name
+      const result={}; // { lobName: { channel, hc:[Jun..Dec] } }
+      for(const row of raw){
+        const lobName=String(row[0]||'').trim();
+        const metric=String(row[4]||'').trim().toLowerCase();
+        if(!lobName||lobName==='nan') continue;
+        if(!metric.includes('training')||metric.includes('attrition')||metric.includes('aux 3')||metric.includes('planned')) continue;
+        const ch=tpsLobChannel(lobName);
+        if(ch==='other') continue;
+        if(!result[lobName]) result[lobName]={channel:ch,hc:[0,0,0,0,0,0,0]};
+        dashMonths.forEach((m,i)=>{
+          const c=monthCols[m];
+          if(c===undefined) return;
+          const v=parseFloat(row[c]);
+          if(!isNaN(v)&&v>0) result[lobName].hc[i]=Math.max(result[lobName].hc[i],Math.round(v));
+        });
+      }
+
+      // Remove entries with all zeros
+      Object.keys(result).forEach(k=>{ if(result[k].hc.every(v=>v===0)) delete result[k]; });
+
+      D.tpsTraining=result;
+      saveData('Uploaded TPS file',`Loaded ${Object.keys(result).length} LOBs from ${file.name}`);
+      renderCurrent();
+      alert(`TPS training data loaded: ${Object.keys(result).length} LOBs found.`);
+    }catch(err){
+      alert('Failed to parse file: '+err.message);
+    }
+    input.value='';
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function clearTpsData(){
+  if(!confirm('Remove TPS training data?')) return;
+  D.tpsTraining={};
+  saveData('Cleared TPS data','');
+  renderCurrent();
 }
 
 function openEditBatchModal(idx){
